@@ -1,0 +1,10 @@
+{
+  "RoutingTbl": {
+    "localhost:8080": "localhost:8080"
+  },
+  "IdDevice":     "RoutingProxy",
+  "ListenAddr":   "localhost:8181",
+  "ConfFile":     "../cfg/poa/routing/cfg.toml",
+  "Timeout":      "30s",
+  "ParallelConn": 0
+}

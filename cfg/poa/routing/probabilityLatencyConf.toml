@@ -1,0 +1,10 @@
+[logic]
+name = "probabilityLatency"
+
+[variables]
+prob = [0.0, 0.8897, 0.9255, 1.0000]
+dest = ["SOURCE", "serverlow:4040", "servermedium:4040", "serverhigh:4040"]
+
+[latency]
+type = ["constant", "constant", "constant", "constant"]
+cfg = ["0ms", "10ms", "12ms", "20ms"]

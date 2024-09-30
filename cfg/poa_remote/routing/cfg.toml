@@ -1,0 +1,10 @@
+[logic]
+name = "probabilityLatency"
+
+[variables]
+prob = [PSL, PSM, PSH]
+dest = ["DST1", "DST2", "DST3"]
+
+[latency]
+type = ["constant", "no delay", "no delay"]
+cfg = ["8ms", "0ms", "0ms"]

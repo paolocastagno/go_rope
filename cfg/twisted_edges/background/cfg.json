@@ -1,0 +1,9 @@
+{
+	"IdDevice": "ID",
+	"destinations": ["DESTINATIONS"],
+	"RequestsPerSec": RPS,
+	"MaxConcurrentConnections": 20000,
+	"TestDuration": "330s",
+	"Timeout": "40s",
+	"AppCfg": "/appconfig.toml"
+}

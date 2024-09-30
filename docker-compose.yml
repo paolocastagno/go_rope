@@ -1,0 +1,195 @@
+version: "3.9"
+
+services:
+  cli_trn:
+    image: rope-client:${TAG:-latest}
+    command:
+      - -config=/config.json
+    volumes: # test monroe config
+      - type: bind
+        source: ${CLIENT_CONF_TRN} # Client configuration
+        target: /config.json
+        read_only: true
+      - type: bind
+        source: ${CLIENT_APP_TRN} # Application configuration
+        target: /appconfig.toml
+        read_only: true    
+
+  bg_trn:
+    image: rope-client:${TAG:-latest}
+    command:
+      - -config=/config.json
+    volumes: # test monroe config
+      - type: bind
+        source: ${BACKGROUND_CONF_TRN} # Client configuration
+        target: /config.json
+        read_only: true
+      - type: bind
+        source: ${BACKGROUND_APP_TRN} # Application configuration
+        target: /appconfig.toml
+        read_only: true
+
+  upf_trn:
+    image: rope-routing:${TAG:-latest}
+    command:
+      - -idDevice=upf_trn
+      - -parallelConn=1
+      - -sinks=${UPF_SNKS_TRN}
+      - -nexthop=${UPF_DEST_TRN}
+      - -timeout=30s
+      - -listen=0.0.0.0:4040
+      - -loggerAddress=${LOGGER}
+      - -loggerToken=${TOKEN}
+      - -confFile=/conf.toml
+      - -loggerBucket=${BUCKET}
+    volumes:
+      - type: bind
+        source: ${UPF_CONF_TRN}
+        target: /conf.toml
+        read_only: true 
+
+  hop_trn:
+    image: rope-routing:${TAG:-latest}
+    command:
+      - -idDevice=hop_trn
+      - -sinks=${HOP_SNKS_TRN}
+      - -nexthop=${HOP_DEST_TRN}
+      - -timeout=30s
+      - -listen=0.0.0.0:4040
+      - -loggerAddress=${LOGGER}
+      - -loggerToken=${TOKEN}
+      - -confFile=/conf.toml
+      - -loggerBucket=${BUCKET}
+    volumes:
+      - type: bind
+        source: ${HOP_CONF_TRN}
+        target: /conf.toml
+        read_only: true 
+
+  srv_trn:
+    image: rope-server:${TAG:-latest}
+    privileged: true
+    command:
+      - -listen=0.0.0.0:4040
+      - -idDevice=serv_trn
+      - -connections=${SRV_DST_TRN}
+      - -queueLen=5
+      - -workers=5
+      - -loggerAddress=${LOGGER}
+      - -loggerToken=${TOKEN}
+      - -loggerBucket=${BUCKET}
+      - -appConfig=/appconfig.toml
+    volumes:
+      - type: bind
+        source: ${SRV_APP_TRN}
+        target: /appconfig.toml
+        read_only: true  
+    ports:
+      - "4343:4040/udp"
+
+  cli_md:
+    image: rope-client:${TAG:-latest}
+    command:
+      - -config=/config.json
+    volumes: # test monroe config
+      - type: bind
+        source: ${CLIENT_CONF_MD} # Client configuration
+        target: /config.json
+        read_only: true
+      - type: bind
+        source: ${CLIENT_APP_MD} # Application configuration
+        target: /appconfig.toml
+        read_only: true
+
+  bg_md:
+    image: rope-client:${TAG:-latest}
+    command:
+      - -config=/config.json
+    volumes: # test monroe config
+      - type: bind
+        source: ${BACKGROUND_CONF_MD} # Client configuration
+        target: /config.json
+        read_only: true
+      - type: bind
+        source: ${BACKGROUND_APP_MD} # Application configuration
+        target: /appconfig.toml
+        read_only: true
+
+  hop_md:
+    image: rope-routing:${TAG:-latest}
+    privileged: true
+    command:
+      - -idDevice=hop
+      - -sinks=${HOP_SNKS_MD}
+      - -nexthop=${HOP_DEST_MD}
+      - -timeout=30s
+      - -listen=0.0.0.0:4040
+      - -loggerAddress=${LOGGER}
+      - -loggerToken=${TOKEN}
+      - -confFile=/conf.toml
+      - -loggerBucket=${BUCKET}
+    volumes:
+      - type: bind
+        source: ${HOP_CONF_MD}
+        target: /conf.toml
+        read_only: true 
+    ports:
+      - "43002:4040/udp"
+
+  upf_md:
+    image: rope-routing:${TAG:-latest}
+    command:
+      - -idDevice=upf_md
+      - -parallelConn=1
+      - -sinks=${UPF_SNKS_MD}
+      - -nexthop=${UPF_DEST_MD}
+      - -timeout=30s
+      - -listen=0.0.0.0:4040
+      - -loggerAddress=${LOGGER}
+      - -loggerToken=${TOKEN}
+      - -confFile=/conf.toml
+      - -loggerBucket=${BUCKET}
+    volumes:
+      - type: bind
+        source: ${UPF_CONF_MD}
+        target: /conf.toml
+        read_only: true 
+
+  srv_md:
+    image: rope-server:${TAG:-latest}
+    privileged: true
+    command:
+      - -listen=0.0.0.0:4040
+      - -idDevice=srv_md
+      - -connections=${SRV_DST_MD}
+      - -queueLen=10
+      - -workers=10
+      - -loggerAddress=${LOGGER}
+      - -loggerToken=${TOKEN}
+      - -loggerBucket=${BUCKET}
+      - -appConfig=/appconfig.toml
+    volumes:
+      - type: bind
+        source: ${SRV_APP_MD}
+        target: /appconfig.toml
+        read_only: true
+    ports:
+      - "43001:4040/udp"
+
+  # First time setup run: docker-compose exec logger influx setup
+  logger:
+    image: influxdb:alpine
+    ports:
+      - "8086:8086/tcp"
+    volumes:
+      - "./influxdbv2_te:/var/lib/influxdb2"
+      - "./:/res"
+      - type: bind
+        source: ./.env
+        target: /.env
+        read_only: true
+      - type: bind
+        source: ./scripts/retrieve.sh
+        target: /retrieve.sh
+        read_only: false
+    

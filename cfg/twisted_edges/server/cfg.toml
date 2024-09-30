@@ -1,0 +1,7 @@
+[logic]
+name = "replyrelay"
+
+[variables]
+workTime = "1ms"
+packets = 30
+destination = ["DESTINATION"] 

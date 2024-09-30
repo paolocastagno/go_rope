@@ -1,0 +1,12 @@
+[logic]
+name = "probabilityLatency"
+
+[variables]
+prob = [1.0]
+dest = ["DST"]
+
+[latency]
+up_cfg = ["LTY_UP"]
+up_type = ["constant"]
+down_cfg = ["LTY_DN"]
+down_type = ["constant"]

@@ -1,0 +1,5 @@
+[logic]
+name = "fixed"
+
+[variables]
+dest = ""

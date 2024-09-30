@@ -1,0 +1,7 @@
+[logic]
+name = "fixed"
+
+[variables]
+destination = DESTINATIONS
+requestSize = 100
+responseSize = 100

@@ -1,0 +1,229 @@
+version: "3.9"
+
+services:
+
+  gen0:
+    image: rope-client:${TAG:-latest}
+    command:
+      - -testDuration=<TESTDURATION>
+      - -requestsPerSec=<REQUESTSPERSEC>
+      - -maxConcurrentConnections=100000
+      - -idDevice=Client_TrafficGenerator
+      - -timeout=40s
+      - -requestSize=210
+      - -responseSize=460
+      - -proxy=127.0.0.1:8084
+
+    network_mode: host
+
+    depends_on:
+      - proxy
+
+
+  gen1:
+    image: rope-client:${TAG:-latest}
+    command:
+      - -testDuration=<TESTDURATION>
+      - -requestsPerSec=<REQUESTSPERSEC>
+      - -maxConcurrentConnections=100000
+      - -idDevice=Client_TrafficGenerator2
+      - -timeout=40s
+      - -requestSize=210
+      - -responseSize=460
+      - -proxy=127.0.0.1:8084
+
+    network_mode: host
+
+    depends_on:
+      - proxy
+
+  gen2:
+    image: rope-client:${TAG:-latest}
+    command:
+      - -testDuration=<TESTDURATION>
+      - -requestsPerSec=<REQUESTSPERSEC>
+      - -maxConcurrentConnections=100000
+      - -idDevice=Client_TrafficGenerator
+      - -timeout=40s
+      - -requestSize=210
+      - -responseSize=460
+      - -proxy=127.0.0.1:8084
+
+    network_mode: host
+
+    depends_on:
+      - proxy
+
+  gen3:
+    image: rope-client:${TAG:-latest}
+    command:
+      - -testDuration=<TESTDURATION>
+      - -requestsPerSec=<REQUESTSPERSEC>
+      - -maxConcurrentConnections=100000
+      - -idDevice=Client_TrafficGenerator
+      - -timeout=40s
+      - -requestSize=210
+      - -responseSize=460
+      - -proxy=127.0.0.1:8084
+
+    network_mode: host
+
+    depends_on:
+      - proxy
+
+  gen4:
+    image: rope-client:${TAG:-latest}
+    command:
+      - -testDuration=<TESTDURATION>
+      - -requestsPerSec=<REQUESTSPERSEC>
+      - -maxConcurrentConnections=100000
+      - -idDevice=Client_TrafficGenerator
+      - -timeout=40s
+      - -requestSize=210
+      - -responseSize=460
+      - -proxy=127.0.0.1:8084
+
+    network_mode: host
+
+    depends_on:
+      - proxy
+
+  gen5:
+    image: rope-client:${TAG:-latest}
+    command:
+      - -testDuration=<TESTDURATION>
+      - -requestsPerSec=<REQUESTSPERSEC>
+      - -maxConcurrentConnections=100000
+      - -idDevice=Client_TrafficGenerator
+      - -timeout=40s
+      - -requestSize=210
+      - -responseSize=460
+      - -proxy=127.0.0.1:8084
+
+    network_mode: host
+
+    depends_on:
+      - proxy
+
+  gen6:
+    image: rope-client:${TAG:-latest}
+    command:
+      - -testDuration=<TESTDURATION>
+      - -requestsPerSec=<REQUESTSPERSEC>
+      - -maxConcurrentConnections=100000
+      - -idDevice=Client_TrafficGenerator
+      - -timeout=40s
+      - -requestSize=210
+      - -responseSize=460
+      - -proxy=127.0.0.1:8084
+
+    network_mode: host
+
+    depends_on:
+      - proxy
+
+  gen7:
+    image: rope-client:${TAG:-latest}
+    command:
+      - -testDuration=<TESTDURATION>
+      - -requestsPerSec=<REQUESTSPERSEC>
+      - -maxConcurrentConnections=100000
+      - -idDevice=Client_TrafficGenerator
+      - -timeout=40s
+      - -requestSize=210
+      - -responseSize=460
+      - -proxy=127.0.0.1:8084
+
+    network_mode: host
+
+    depends_on:
+      - proxy
+
+  gen8:
+    image: rope-client:${TAG:-latest}
+    command:
+      - -testDuration=<TESTDURATION>
+      - -requestsPerSec=<REQUESTSPERSEC>
+      - -maxConcurrentConnections=100000
+      - -idDevice=Client_TrafficGenerator
+      - -timeout=40s
+      - -requestSize=210
+      - -responseSize=460
+      - -proxy=127.0.0.1:8084
+
+    network_mode: host
+
+    depends_on:
+      - proxy
+
+  gen9:
+    image: rope-client:${TAG:-latest}
+    command:
+      - -testDuration=<TESTDURATION>
+      - -requestsPerSec=<REQUESTSPERSEC>
+      - -maxConcurrentConnections=100000
+      - -idDevice=Client_TrafficGenerator
+      - -timeout=40s
+      - -requestSize=210
+      - -responseSize=460
+      - -proxy=127.0.0.1:8084
+
+    network_mode: host
+
+    depends_on:
+      - proxy
+
+  proxy:
+    image: rope-proxy:${TAG:-latest}
+    command:
+      - -mec=127.0.0.1:8085
+      - -cloud=130.192.212.176:4343
+      - -timeout=30s
+      - -listen=0.0.0.0:8084
+      - -loggerAddress=130.192.212.176:8086
+      - -loggerToken=jmrB5WUtB1C0pNGOsvJaBKC_g5u5VQtajSX4lcEzAgufXEfHIYLe5c1eNN8VnB8tMYssNF7E-AkqkSts0UkfGQ==
+      - -confFile=/conf.toml
+    volumes:
+      - type: bind
+        source: <CONFIGFILE> # ./meccloudLocalConf.toml # ./avoidfullConf.toml # ./probabilityConf.toml
+        target: /conf.toml
+        read_only: true
+    network_mode: host
+
+    depends_on:
+      - servermec
+
+  servermec:
+    image: rope-server:${TAG:-latest}
+    command:
+      - -listen=0.0.0.0:8085
+      - -idDevice=Server_MEC
+      - -queueLen=9
+      - -workers=1
+      - -workTime=5ms
+      - -loggerAddress=130.192.212.176:8086
+      - -loggerToken=jmrB5WUtB1C0pNGOsvJaBKC_g5u5VQtajSX4lcEzAgufXEfHIYLe5c1eNN8VnB8tMYssNF7E-AkqkSts0UkfGQ==
+    network_mode: host
+
+  servercloud:
+    image: rope-server:${TAG:-latest}
+    command:
+      - -listen=0.0.0.0:4343
+      - -idDevice=Server_CLOUD
+      - -queueLen=40
+      - -workers=10
+      - -workTime=5ms
+      - -loggerAddress=130.192.212.176:8086
+      - -loggerToken=jmrB5WUtB1C0pNGOsvJaBKC_g5u5VQtajSX4lcEzAgufXEfHIYLe5c1eNN8VnB8tMYssNF7E-AkqkSts0UkfGQ==
+    ports:
+      - "4343:4343/udp"
+    depends_on:
+      - logger
+
+  # First time setup run: docker-compose exec logger influx setup
+  logger:
+    image: quay.io/influxdb/influxdb:v2.0.4
+    ports:
+      - "8086:8086/tcp"
+    volumes:
+      - "./influxdbv2:/root/.influxdbv2/"

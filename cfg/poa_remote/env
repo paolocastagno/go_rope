@@ -1,0 +1,28 @@
+# Use this as a template whith run.sh
+# InfluxDB configuration
+LOGGER=LGR
+TOKEN=TKN
+BUCKET=BKT
+
+#Client's configuration
+CLIENT_CONF=CLI_C
+CLIENT_APP=CLI_A
+
+#Background's configuration
+BACKGROUND_CONF=BG_C
+BACKGROUND_APP=BG_A
+
+# Proxy's configuration
+PROXY_CONF=PXY_C
+PROXY_SNKS="PXY_S"
+PROXY_DEST="PXY_D"
+
+# Hop's configuration
+HOP_CONF=HP_C
+HOP_SNKS="HP_S"
+HOP_DEST="HP_D"
+
+# Servers' configuration
+SERVERTRN_APP=SRV_TRN_A
+SERVERMD0_APP=SRV_MD0_A
+SERVERMD1_APP=SRV_MD1_A

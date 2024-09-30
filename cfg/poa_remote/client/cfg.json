@@ -1,0 +1,18 @@
+{
+	"IdDevice": "ID",
+	"destinations": [DESTINATIONS],
+	"RequestsPerSec": RPS,
+	"MaxConcurrentConnections": 20000,
+	"TestDuration": "180s",
+	"Timeout": "40s",
+	"AppCfg": "/appconfig.toml",
+	"Logger":
+	{
+		"loggerAddress": "LOGGER",
+		"loggerBatchSize": 5000,
+		"loggerBucket": "BUCKET",
+		"loggerFlushInterval": 5000,
+		"loggerOrg": "unito",
+		"loggerToken": "TOCKEN"
+	}
+}

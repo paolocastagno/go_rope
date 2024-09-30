@@ -1,0 +1,6 @@
+[logic]
+name = "reply"
+
+[variables]
+workTime = "5ms"
+packets = 1

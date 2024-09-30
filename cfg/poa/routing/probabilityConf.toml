@@ -1,0 +1,7 @@
+[logic]
+name = "probability"
+
+[variables]
+prob = [0.2, 0.5, 1.0]
+dest = ["130.192.212.176:4141", "servermedium:4444", "193.147.104.34:4545"] 
+

@@ -1,0 +1,9 @@
+{
+	"IdDevice": "ID",
+	"Proxy": "localhost:8181",
+	"RequestsPerSec": 5,
+	"MaxConcurrentConnections": 20000,
+	"TestDuration": "30s",
+	"Timeout": "40s",
+	"AppCfg": "../cfg/poa/client/app.toml"
+}

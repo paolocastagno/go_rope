@@ -1,0 +1,20 @@
+# Use this as a template whith run.sh
+# InfluxDB configuration
+TOKEN=TKN
+BUCKET=BKT
+
+#Client's configuration
+CLIENT_CONF=CLI_C
+CLIENT_APP=CLI_A
+
+#Background's configuration
+BACKGROUND_CONF=BG_C
+BACKGROUND_APP=BG_A
+
+# Proxy's configuration
+PROXY_CONF=PXY_C
+
+# Servers' configuration
+SERVERL_APP=SRV_L_A
+SERVERM_APP=SRV_M_A
+SERVERH_APP=SRV_H_A
