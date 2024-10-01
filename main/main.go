@@ -42,7 +42,7 @@ func main() {
 		}
 	}()
 
-	//avvio server in una goroutine separata
+	// start server in a separate goroutine
 	go func() {
 		if err := srv.InitServer(quicConf, server.InitReply); err != nil {
 			log.Fatalf("Error running server: %v", err)
