@@ -2,14 +2,11 @@ package routing
 
 import (
 	"fmt"
+	"go_rope/config"
+	"go_rope/util"
 	"time"
 
-	"github.com/paolocastagno/go_rope/config"
-
 	"github.com/pelletier/go-toml"
-
-	//modulo locale
-	"github.com/paolocastagno/go_rope/util"
 )
 
 // Counter

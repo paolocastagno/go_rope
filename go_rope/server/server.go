@@ -1,18 +1,17 @@
 package server
 
 import (
-	"RoPE/config"
 	"context"
 	"encoding/gob"
 	"errors"
 	"fmt"
-	"github.com/pelletier/go-toml"
-	"github.com/quic-go/quic-go"
+	"go_rope/config"
+	"go_rope/util"
 	"os"
 	"time"
 
-	//librerie locali
-	"util"
+	"github.com/pelletier/go-toml"
+	"github.com/quic-go/quic-go"
 )
 
 /*type ServerConfig struct {

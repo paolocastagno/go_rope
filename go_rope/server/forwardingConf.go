@@ -3,8 +3,7 @@ package server
 import (
 	quic "github.com/quic-go/quic-go"
 
-	//modulo locale
-	"util"
+	"go_rope/util"
 )
 
 /////////// Logic parsing //////////////

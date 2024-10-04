@@ -2,10 +2,8 @@ package routing
 
 import (
 	"fmt"
+	"go_rope/util"
 	"os"
-
-	//modulo locale
-	"github.com/paolocastagno/go_rope/util"
 )
 
 /////////// Logic parsing //////////////

@@ -1,11 +1,12 @@
 package routing
 
 import (
-	"github.com/paolocastagno/go_rope/config"
 	"context"
 	"crypto/tls"
 	"encoding/gob"
 	"fmt"
+	"go_rope/config"
+	"go_rope/util"
 	"log"
 	"os"
 	"time"
@@ -13,8 +14,6 @@ import (
 	"github.com/pelletier/go-toml"
 
 	"github.com/quic-go/quic-go"
-	//modulo locale
-	"github.com/paolocastagno/go_rope/util"
 )
 
 var tokensUp, tokensDn chan struct{}

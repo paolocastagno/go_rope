@@ -36,13 +36,13 @@ func main() {
 	}
 
 	go func() {
-		err := prx.InitProxy("../cfg/poa/routing/cfg_proxy.json", quicConf, routing.InitFixed)
+		err := prx.InitProxy("../cfg/poa/routing/cfg_proxy.json", quicConf, main.InitFixed)
 		if err != nil {
 			return
 		}
 	}()
 
-	// start server in a separate goroutine
+	//avvio server in una goroutine separata
 	go func() {
 		if err := srv.InitServer(quicConf, server.InitReply); err != nil {
 			log.Fatalf("Error running server: %v", err)

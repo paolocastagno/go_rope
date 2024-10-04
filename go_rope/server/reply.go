@@ -2,12 +2,11 @@ package server
 
 import (
 	"fmt"
-	"github.com/pelletier/go-toml"
-	"github.com/quic-go/quic-go"
+	"go_rope/util"
 	"time"
 
-	//modulo locale
-	"util"
+	"github.com/pelletier/go-toml"
+	"github.com/quic-go/quic-go"
 )
 
 // Sinks

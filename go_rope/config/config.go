@@ -2,8 +2,9 @@ package config
 
 import (
 	"fmt"
-	"github.com/pelletier/go-toml"
 	"os"
+
+	"github.com/pelletier/go-toml"
 )
 
 // ForwardingConfig rappresenta la configurazione comune per l'inoltro
@@ -23,10 +24,7 @@ func LoadForwardingConf(confFile string, initLogic func(*toml.Tree)) {
 	if err != nil {
 		Die("Error loading configuration", err.Error())
 	} else {
-		// retrieve data directly
-		//config.Get("logic.file")
-
-		initLogic(config) // Chiama direttamente la funzione di inizializzazione della logica di inoltro
+		initLogic(config)
 	}
 }
 
@@ -34,46 +32,3 @@ func Die(msg ...interface{}) {
 	fmt.Println(msg...)
 	os.Exit(1)
 }
-
-/*func supportedLogics() []string {
-	logicsNames := make([]string, 0, len(logicsMap))
-	for name := range logicsMap {
-		logicsNames = append(logicsNames, name)
-	}
-	return logicsNames
-}
-
-func isLogicSupported(logicName string) bool {
-	for _, name := range supportedLogics() {
-		if name == logicName {
-			return true
-		}
-	}
-	return false
-}*/
-
-//reflection
-/*func LoadForwardingConf(confFile string) {
-	config, err := toml.LoadFile(confFile)
-	if err != nil {
-		Die("Error loading configuration", err.Error())
-	} else {
-		// retrieve data directly
-		//logicName := config.Get("logic.name").(string)
-		initFuncName := config.Get("logic.init").(string)
-
-		// Ottieni il valore della funzione di inizializzazione dall'ambiente di runtime
-		initFunc := reflect.ValueOf(initFuncName)
-		if !initFunc.IsValid() {
-			Die("Invalid init function:", initFuncName)
-		}
-
-		// Verifica se la funzione di inizializzazione è effettivamente una funzione
-		if initFunc.Kind() != reflect.Func {
-			Die("Init function is not a function:", initFuncName)
-		}
-
-		// Chiamata dinamica alla funzione di inizializzazione senza argomenti
-		initFunc.Call([]reflect.Value{})
-	}
-}*/

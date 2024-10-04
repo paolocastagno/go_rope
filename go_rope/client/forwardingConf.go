@@ -1,8 +1,6 @@
 package client
 
-import (
-	"github.com/paolocastagno/go_rope/util"
-)
+import "go_rope/util"
 
 /////////// Logic parsing //////////////
 

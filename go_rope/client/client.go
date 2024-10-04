@@ -1,10 +1,12 @@
 package client
 
 import (
-	"github.com/paolocastagno/go_rope/config"
+	"go_rope/config"
+	"go_rope/util"
 
 	"github.com/pelletier/go-toml"
 
+	//"context"
 	"context"
 	"crypto/tls"
 	"encoding/gob"
@@ -23,8 +25,6 @@ import (
 	"github.com/lthibault/jitterbug"
 	"github.com/quic-go/quic-go"
 	"gonum.org/v1/gonum/stat/distuv"
-
-	"github.com/paolocastagno/go_rope/util"
 )
 
 var GitCommit = "master"
