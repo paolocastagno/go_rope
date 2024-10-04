@@ -5,7 +5,7 @@ import (
 	"math/rand"
 	"time"
 
-	"go_rope/util"
+	"github.com/paolocastagno/go_rope/util"
 )
 
 // Routing probabilities

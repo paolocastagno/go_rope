@@ -2,8 +2,8 @@ package client
 
 import (
 	"fmt"
-	"go_rope/config"
-	"go_rope/util"
+	"github.com/paolocastagno/go_rope/config"
+	"github.com/paolocastagno/go_rope/util"
 	"time"
 
 	"github.com/pelletier/go-toml"

@@ -5,11 +5,12 @@ import (
 	"crypto/tls"
 	"encoding/gob"
 	"fmt"
-	"go_rope/config"
-	"go_rope/util"
 	"log"
 	"os"
 	"time"
+
+	"github.com/paolocastagno/go_rope/config"
+	"github.com/paolocastagno/go_rope/util"
 
 	"github.com/pelletier/go-toml"
 

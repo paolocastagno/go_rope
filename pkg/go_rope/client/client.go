@@ -1,8 +1,8 @@
 package client
 
 import (
-	"go_rope/config"
-	"go_rope/util"
+	"github.com/paolocastagno/go_rope/config"
+	"github.com/paolocastagno/go_rope/util"
 
 	"github.com/pelletier/go-toml"
 

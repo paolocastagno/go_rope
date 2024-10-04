@@ -5,10 +5,11 @@ import (
 	"encoding/gob"
 	"errors"
 	"fmt"
-	"go_rope/config"
-	"go_rope/util"
 	"os"
 	"time"
+
+	"github.com/paolocastagno/go_rope/config"
+	"github.com/paolocastagno/go_rope/util"
 
 	"github.com/pelletier/go-toml"
 	"github.com/quic-go/quic-go"

@@ -2,8 +2,9 @@ package server
 
 import (
 	"fmt"
-	"go_rope/util"
 	"time"
+
+	"github.com/paolocastagno/go_rope/util"
 
 	"github.com/pelletier/go-toml"
 	"github.com/quic-go/quic-go"
