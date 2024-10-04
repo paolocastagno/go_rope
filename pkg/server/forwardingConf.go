@@ -3,7 +3,7 @@ package server
 import (
 	"github.com/quic-go/quic-go"
 
-	"github.com/paolocastagno/go_rope/util"
+	"github.com/paolocastagno/go_rope/pkg/util"
 )
 
 /////////// Logic parsing //////////////

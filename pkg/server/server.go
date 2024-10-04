@@ -8,8 +8,8 @@ import (
 	"os"
 	"time"
 
-	"github.com/paolocastagno/go_rope/config"
-	"github.com/paolocastagno/go_rope/util"
+	"github.com/paolocastagno/go_rope/pkg/config"
+	"github.com/paolocastagno/go_rope/pkg/util"
 
 	"github.com/pelletier/go-toml"
 	"github.com/quic-go/quic-go"

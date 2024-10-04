@@ -2,7 +2,7 @@ package routing
 
 import (
 	"fmt"
-	"github.com/paolocastagno/go_rope/util"
+	"github.com/paolocastagno/go_rope/pkg/util"
 	"os"
 )
 
