@@ -4,8 +4,8 @@ import (
 	"log"
 	"time"
 
-	rope "github.com/paolocastagno/go_rope"
-	quic "github.com/quic-go/quic-go"
+	"github.com/paolocastagno/go_rope/pkg/server"
+	"github.com/quic-go/quic-go"
 )
 
 func main() {

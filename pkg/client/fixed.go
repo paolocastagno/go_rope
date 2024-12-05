@@ -4,8 +4,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/paolocastagno/go_rope/pkg/config"
-	"github.com/paolocastagno/go_rope/pkg/util"
+    "github.com/paolocastagno/go_rope/pkg/config"
+    "github.com/paolocastagno/go_rope/pkg/routing"
+    "github.com/paolocastagno/go_rope/pkg/util"
 
 	"github.com/pelletier/go-toml"
 )

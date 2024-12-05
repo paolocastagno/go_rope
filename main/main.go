@@ -1,12 +1,13 @@
 package main
 
 import (
-	"client"
-	"github.com/quic-go/quic-go"
 	"log"
-	"routing"
-	"server"
 	"time"
+
+	"github.com/paolocastagno/go_rope/pkg/client"
+	"github.com/paolocastagno/go_rope/pkg/routing"
+	"github.com/paolocastagno/go_rope/pkg/server"
+	"github.com/quic-go/quic-go"
 )
 
 func main() {
