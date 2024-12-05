@@ -1,15 +1,17 @@
-package ClientServer
+package main
 
 import (
 	"log"
 	"time"
 
+	"github.com/paolocastagno/go_rope/pkg/client"
+	"github.com/paolocastagno/go_rope/pkg/routing"
 	"github.com/paolocastagno/go_rope/pkg/server"
 	"github.com/quic-go/quic-go"
 )
 
 func main() {
-	srv := &rope.server.Server{
+	srv := &server.Server{
 		IdDevice:   "Server",
 		ListenAddr: "localhost:8080",
 		AppCfg:     "../cfg/poa/server/app_reply.toml",
@@ -18,7 +20,7 @@ func main() {
 		Timeout:    30 * time.Second,
 	}
 
-	prx := &rope.routing.Proxy{
+	prx := &routing.Proxy{
 		RoutingTbl:   make(map[string]string),
 		IdDevice:     "RoutingProxy",
 		ListenAddr:   "localhost:8181",
@@ -43,7 +45,7 @@ func main() {
 
 	//avvio server in una goroutine separata
 	go func() {
-		if err := srv.InitServer(quicConf, rope.server.InitReply); err != nil {
+		if err := srv.InitServer(quicConf, server.InitReply); err != nil {
 			log.Fatalf("Error running server: %v", err)
 		}
 	}()
@@ -51,13 +53,13 @@ func main() {
 	time.Sleep(5 * time.Second)
 
 	// Inizializza un'istanza del client
-	cli := &rope.client.Client{}
+	cli := &client.Client{}
 
 	// Specifica il percorso del file di configurazione
 	configFile := "../cfg/poa/client/cfg.json"
 
 	// InitClient
-	err := cli.InitClient(configFile, quicConf, rope.client.InitFixed)
+	err := cli.InitClient(configFile, quicConf, client.InitFixed)
 	if err != nil {
 		log.Fatalf("Errore durante l'inizializzazione del client: %v", err)
 	}

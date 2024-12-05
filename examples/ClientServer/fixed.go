@@ -1,14 +1,14 @@
-package ClientServer
+package main
 
 import (
 	"fmt"
 	"time"
 
-	"github.com/pelletier/go-toml"
+	"github.com/paolocastagno/go_rope/pkg/config"
+	"github.com/paolocastagno/go_rope/pkg/routing"
+	"github.com/paolocastagno/go_rope/pkg/util"
 
-	"go_rope/config"
-	"go_rope/routing"
-	"go_rope/util"
+	"github.com/pelletier/go-toml"
 )
 
 // Counter
