@@ -26,7 +26,6 @@ var b_d = util.NewMavg(twind)
 var rtr *routing.Proxy
 
 func InitFixed(conf *toml.Tree, rtr_p *routing.Proxy) {
-	rtr = rtr_p
 	dest := conf.Get("variables.dest")
 
 	if dest == nil {
@@ -37,9 +36,9 @@ func InitFixed(conf *toml.Tree, rtr_p *routing.Proxy) {
 	// Initialize counters
 	cu = 0
 	cd = 0
-
-	rtr.ForwardDecision = FixedDecision
-	rtr.ForwardSetLastResponse = FixedSetLastResponse
+	
+	rtr_p.ForwardDecision = FixedDecision
+	rtr_p.ForwardSetLastResponse = FixedSetLastResponse
 }
 
 func FixedDecision(req *util.RoPEMessage) {

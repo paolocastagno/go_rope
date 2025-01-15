@@ -37,7 +37,7 @@ func main() {
 	}
 
 	go func() {
-		err := prx.InitProxy("../cfg/poa/routing/cfg_proxy.json", quicConf, main.InitFixed)
+		err := prx.InitProxy("../cfg/poa/routing/cfg_proxy.json", quicConf, InitFixed)
 		if err != nil {
 			return
 		}

@@ -20,12 +20,19 @@ import (
 var tokensUp, tokensDn chan struct{}
 
 type Proxy struct {
-	IdDevice     string
-	ListenAddr   string
-	ConfFile     string
-	Timeout      time.Duration
-	ParallelConn uint
-	RoutingTbl   map[string]string
+	IdDevice               string
+	ListenAddr             string
+	ConfFile               string
+	Timeout                time.Duration
+	ParallelConn           uint
+	RoutingTbl             map[string]string
+	ForwardDecision        func(*util.RoPEMessage)
+	ForwardSetLastResponse func(*util.RoPEMessage)
+}
+
+func die(msg ...interface{}) {
+	fmt.Println(msg...)
+	os.Exit(1)
 }
 
 func (proxy *Proxy) InitProxy(configFile string, quicConf *quic.Config, initLogic func(*toml.Tree)) error {
@@ -165,7 +172,7 @@ func (proxy *Proxy) newRequest(stream quic.Stream, sessions map[string]quic.Conn
 
 	// Forwarding logic (application logic)
 	if proxy.ConfFile != "" {
-		ForwardDecision(&packet)
+		proxy.ForwardDecision(&packet)
 	}
 
 	dest, ok := proxy.RoutingTbl[packet.Destination] ///
@@ -253,8 +260,8 @@ func (proxy *Proxy) forwardRequest(serverSession quic.Connection, packet util.Ro
 		return errorResp
 	}
 
-	if ForwardSetLastResponse != nil {
-		ForwardSetLastResponse(&resp)
+	if proxy.ForwardSetLastResponse != nil {
+		proxy.ForwardSetLastResponse(&resp)
 	}
 
 	// util.LogEvent(resp.ReqID, util.Received, packet.Destination, resp.Log, idDevice)

@@ -1,9 +1,8 @@
 package client
 
 import (
-    "github.com/paolocastagno/go_rope/pkg/config"
-    "github.com/paolocastagno/go_rope/pkg/routing"
-    "github.com/paolocastagno/go_rope/pkg/util"
+	"github.com/paolocastagno/go_rope/pkg/config"
+	"github.com/paolocastagno/go_rope/pkg/util"
 
 	"github.com/pelletier/go-toml"
 
@@ -30,20 +29,15 @@ import (
 
 var GitCommit = "master"
 
-// ClientConfig is the configuration for the current client
-// A configuration can be defined in a config file following
-// the toml structure
-// type ClientConfig struct {
-// IdDevice						string			`json:"idDevice"`
-// Proxy						string			`json:"proxy"`
-// RequestsPerSec				uint			`json:"requestsPerSec"`
-// MaxConcurrentConnections		uint			`json:"maxConcurrentConnections"`
-// RequestSize					uint			`json:"requestSize"`
-// ResponseSize					uint			`json:"responseSize"`
-// TestDuration					string			`json:"testDuration"`
-// Timeout						string			`json:"timeout"`
-// Logger						util.LoggerConf	`json:"logger"`
-// }
+var ForwardDecision func(msg *util.RoPEMessage, destinations []string) string
+var ForwardSetLastResponse func(util.RoPEMessage)
+
+// ForwardingLogic definisce l'interfaccia per le logiche di inoltro
+type ForwardingLogic interface {
+	Init()
+	Decision(*util.RoPEMessage, []string) string
+	SetLastResponse(util.RoPEMessage)
+}
 
 type Client struct {
 	IdDevice                 string
@@ -60,22 +54,6 @@ type Client struct {
 	Counter                  chan int64
 	Wg                       sync.WaitGroup
 }
-
-/*func NewClient(idDevice string, appCfg string, timeout time.Duration) *Client {
-	return &Client{
-		IdDevice:                 idDevice,
-		Destinations:             destinations,
-		RequestsPerSec:           requestsPerSec,
-		MaxConcurrentConnections: maxConcurrentConnections,
-		TestDuration:             testDuration,
-		Timeout:                  timeout,
-		Clicfg:                   clicfg,
-		Appcfg:                   appCfg,
-		LoggerEnabled:            false, //false per impostazione predefinita
-		Sessions:                 nil,   //nil per impostazione predefinita
-		Counter:                  make(chan int64, client.MaxConcurrentConnections),
-	}
-}*/
 
 func (client *Client) InitClient(configFile string, quicConf *quic.Config, initLogic func(*toml.Tree)) error {
 
@@ -120,6 +98,11 @@ func (client *Client) InitClient(configFile string, quicConf *quic.Config, initL
 	wgPing.Wait()
 
 	return nil
+}
+
+func die(msg ...interface{}) {
+	fmt.Println(msg...)
+	os.Exit(1)
 }
 
 func (client *Client) loadParam(config string) bool {

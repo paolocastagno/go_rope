@@ -22,7 +22,7 @@ const twind = 100
 var b_u = util.NewMavg(twind)
 var b_d = util.NewMavg(twind)
 
-func InitFixed(conf *toml.Tree) {
+func InitFixed(conf *toml.Tree, proxy *Proxy) {
 
 	dest := conf.Get("variables.dest")
 
@@ -35,8 +35,8 @@ func InitFixed(conf *toml.Tree) {
 	cu = 0
 	cd = 0
 
-	ForwardDecision = FixedDecision
-	ForwardSetLastResponse = FixedSetLastResponse
+	proxy.ForwardDecision = FixedDecision
+	proxy.ForwardSetLastResponse = FixedSetLastResponse
 }
 
 func FixedDecision(req *util.RoPEMessage) {
