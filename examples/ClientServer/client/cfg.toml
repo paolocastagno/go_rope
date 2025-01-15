@@ -1,0 +1,8 @@
+[logic]
+name = "fixed"
+init = "InitFixed"
+
+[variables]
+destination = "localhost:8080"
+requestSize = 100
+responseSize = 100

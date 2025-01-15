@@ -1,0 +1,7 @@
+[logic]
+name = "app_srv"
+
+[variables]
+processing_time = "50ms"
+packets = 1
+packet_size=64
