@@ -4,23 +4,17 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/gob"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"log"
-	"math/rand"
-	"os"
 	"strconv"
 	"sync"
 	"time"
 
-	"github.com/lthibault/jitterbug"
 	"github.com/pelletier/go-toml"
 	"github.com/quic-go/quic-go"
-	"gonum.org/v1/gonum/stat/distuv"
 
-	"github.com/paolocastagno/go_rope/pkg/config"
 	"github.com/paolocastagno/go_rope/pkg/util"
 )
 
@@ -32,36 +26,44 @@ var ForwardDecision func(msg *util.RoPEMessage, destinations []string) string
 // ForwardSetLastResponse is a function that sets the last response for a message
 var ForwardSetLastResponse func(util.RoPEMessage)
 
-// ForwardingLogic defines the interface for forwarding logic
-type ForwardingLogic interface {
-	Init()
-	Decision(*util.RoPEMessage, []string) string
-	SetLastResponse(util.RoPEMessage)
+// ApplicationLogic defines the interface for application logic
+type ApplicationLogic interface {
+	InitApp(*toml.Tree)
+	App(*util.RoPEMessage, []string) string
+	pktSnd(*util.RoPEMessage)
 }
 
 // Client represents the client configuration
 type Client struct {
 	IdDevice                 string
-	Proxy                    string
 	Destinations             []string
-	RequestsPerSec           float64
 	MaxConcurrentConnections uint
 	TestDuration             time.Duration
 	Timeout                  time.Duration
-	Clicfg                   string
-	Appcfg                   string
+	CfgFile                  string
 	LoggerEnabled            bool
-	Sessions                 []quic.EarlyConnection
+	Connections              []quic.EarlyConnection
 	Counter                  chan int64
-	Wg                       sync.WaitGroup
+	Application              ApplicationLogic
 }
 
 // InitClient initializes the client with the given configuration file and QUIC configuration
-func (client *Client) InitClient(configFile string, quicConf *quic.Config, initLogic func(*toml.Tree)) error {
+func (client *Client) InitClient(quicConf *quic.Config, initLogic func(*toml.Tree)) error {
 	fmt.Printf("Running client version %s\n", GitCommit)
 
-	// Load client parameters from the configuration file
-	client.loadParam(configFile)
+	// Load client configuration file
+	if client.CfgFile != "" {
+		config, err := toml.LoadFile(client.CfgFile)
+		if err != nil {
+			return fmt.Errorf("error loading configuration: %v", err)
+		} else {
+			initLogic(config)
+		}
+		fmt.Println("Loading forwarding policy:", client.CfgFile)
+		client.Application.InitApp(config)
+	} else {
+		return errors.New("no forwarding policy specified")
+	}
 	fmt.Printf("Starting idDevice: %s\n", client.IdDevice)
 
 	// Initialize the logger
@@ -71,14 +73,6 @@ func (client *Client) InitClient(configFile string, quicConf *quic.Config, initL
 	defer util.CloseLogger()
 
 	client.LoggerEnabled = util.IsLoggerEnabled()
-
-	// Load forwarding policy if specified
-	if client.Appcfg != "" {
-		fmt.Println("Loading forwarding policy:", client.Appcfg)
-		config.LoadForwardingConf(client.Appcfg, initLogic)
-	} else {
-		return errors.New("no forwarding policy specified")
-	}
 
 	// Start the client main process
 	if err := client.clientMain(client.Destinations, quicConf); err != nil {
@@ -91,66 +85,24 @@ func (client *Client) InitClient(configFile string, quicConf *quic.Config, initL
 	return nil
 }
 
-// loadParam loads the client parameters from the given configuration file
-func (client *Client) loadParam(config string) bool {
-	jsonFile, err := os.Open(config)
-	if err != nil {
-		return false
-	}
-	defer jsonFile.Close()
-
-	fmt.Println("Using config file:", config)
-	byteValue, _ := io.ReadAll(jsonFile)
-
-	var cfg map[string]interface{}
-	if err := json.Unmarshal(byteValue, &cfg); err != nil {
-		fmt.Println("error:", err)
-		return false
-	}
-
-	client.IdDevice = getString(cfg, "IdDevice", "device_default")
-	client.Proxy = getString(cfg, "Proxy", "")
-	client.Destinations = append(client.Destinations, client.Proxy)
-	client.RequestsPerSec = getFloat64(cfg, "RequestsPerSec", 1.0)
-	client.MaxConcurrentConnections = uint(getFloat64(cfg, "MaxConcurrentConnections", 1.0))
-	client.TestDuration = getDuration(cfg, "TestDuration", "0s")
-	client.Timeout = getDuration(cfg, "Timeout", "0s")
-	client.Appcfg = getString(cfg, "AppCfg", "")
-
-	// Load logger configuration if specified
-	if loggerCfg, ok := cfg["Logger"]; ok {
-		byteValue, err := json.Marshal(loggerCfg)
-		if err == nil {
-			var logger util.LoggerConf
-			if err := json.Unmarshal(byteValue, &logger); err == nil {
-				util.SetLoggerParamFromConf(logger)
-			}
-		}
-	}
-
-	fmt.Printf("Client %s configuration:\n", client.IdDevice)
-	client.printParams()
-	return true
-}
-
-// getString retrieves a string value from the configuration map
-func getString(cfg map[string]interface{}, key, defaultValue string) string {
+// GetString retrieves a string value from the configuration map
+func GetString(cfg map[string]interface{}, key, defaultValue string) string {
 	if value, ok := cfg[key].(string); ok {
 		return value
 	}
 	return defaultValue
 }
 
-// getFloat64 retrieves a float64 value from the configuration map
-func getFloat64(cfg map[string]interface{}, key string, defaultValue float64) float64 {
+// GetFloat64 retrieves a float64 value from the configuration map
+func GetFloat64(cfg map[string]interface{}, key string, defaultValue float64) float64 {
 	if value, ok := cfg[key].(float64); ok {
 		return value
 	}
 	return defaultValue
 }
 
-// getDuration retrieves a duration value from the configuration map
-func getDuration(cfg map[string]interface{}, key, defaultValue string) time.Duration {
+// GetDuration retrieves a duration value from the configuration map
+func GetDuration(cfg map[string]interface{}, key, defaultValue string) time.Duration {
 	if value, ok := cfg[key].(string); ok {
 		duration, err := time.ParseDuration(value)
 		if err == nil {
@@ -161,19 +113,18 @@ func getDuration(cfg map[string]interface{}, key, defaultValue string) time.Dura
 	return duration
 }
 
-// printParams prints the client parameters
-func (client *Client) printParams() {
+// PrintParams prints the client parameters
+func (client *Client) PrintParams() {
 	fmt.Println("Test duration:", client.TestDuration)
 	fmt.Println("Timeout:", client.Timeout)
 	fmt.Println("Destinations:", client.Destinations)
 	fmt.Println("IdDevice:", client.IdDevice)
-	fmt.Println("RequestsPerSec:", client.RequestsPerSec)
 	fmt.Println("MaxConcurrentConnections:", client.MaxConcurrentConnections)
-	fmt.Println("Appcfg:", client.Appcfg)
+	fmt.Println("CfgFile:", client.CfgFile)
 }
 
-// setupTestDuration sets up the test duration timer
-func (client *Client) setupTestDuration(done chan<- bool) {
+// SetupTestDuration sets up the test duration timer
+func (client *Client) SetupTestDuration(done chan<- bool) {
 	if client.TestDuration > 0 {
 		fmt.Printf("Test duration set to %v\n", client.TestDuration)
 		testTimer := time.NewTimer(client.TestDuration)
@@ -187,63 +138,7 @@ func (client *Client) setupTestDuration(done chan<- bool) {
 	}
 }
 
-// exponentialTicker creates a ticker that generates events at an exponentially distributed interval
-func exponentialTicker(rps float64) *jitterbug.Ticker {
-	fmt.Println("Tuning value to get", rps, "request per second.")
-	rand.Seed(time.Now().UTC().UnixNano())
-
-	beta := 0.000000001 * float64(rps)
-	t := jitterbug.New(
-		time.Millisecond*0,
-		&jitterbug.Univariate{
-			Sampler: &distuv.Gamma{
-				Alpha: 1,
-				Beta:  beta,
-			},
-		},
-	)
-
-	done := make(chan bool)
-	testSec := uint(20)
-	testTimer := time.NewTimer(time.Second * time.Duration(testSec))
-	go func() {
-		<-testTimer.C
-		fmt.Println("Tuning ended")
-		done <- true
-	}()
-
-	var counter float64
-	start := time.Now()
-	for {
-		counter++
-		select {
-		case <-done:
-			t.Stop()
-			break
-		case <-t.C:
-		}
-	}
-
-	end := time.Now()
-	fmt.Println("Duration:", end.Sub(start))
-	fmt.Println("Expected", rps*float64(testSec), "requests in", testSec, "seconds")
-	fmt.Println("Got", counter, "requests in", testSec, "seconds")
-
-	newBeta := beta
-	fmt.Println("New beta:", newBeta)
-
-	return jitterbug.New(
-		time.Millisecond*0,
-		&jitterbug.Univariate{
-			Sampler: &distuv.Gamma{
-				Alpha: 1,
-				Beta:  newBeta,
-			},
-		},
-	)
-}
-
-// clientMain configures the QUIC connections with the destinations and handles requests
+// clientMain configures the QUIC connections with the destinations
 func (client *Client) clientMain(destinations []string, quicConf *quic.Config) error {
 	tlsConf := &tls.Config{
 		InsecureSkipVerify: true,
@@ -253,64 +148,30 @@ func (client *Client) clientMain(destinations []string, quicConf *quic.Config) e
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, "source", client.IdDevice)
 
-	var wg sync.WaitGroup
-	fmt.Printf("Requests per second set to %v\n", client.RequestsPerSec)
 	fmt.Printf("Requests timeout set to %v\n", client.Timeout)
 
-	var sessions []quic.EarlyConnection
 	for _, d := range destinations {
-		s, err := quic.DialAddrEarly(ctx, d, tlsConf, quicConf)
+		c, err := quic.DialAddrEarly(ctx, d, tlsConf, quicConf)
 		if err != nil {
 			fmt.Printf("Cannot connect to %s\n", d)
 			log.Println(err)
 			return err
 		}
-		sessions = append(sessions, s)
+		client.Connections = append(client.Connections, c)
 		fmt.Printf("Connected to %s\n", d)
-		defer s.CloseWithError(0x1337, "Test finished!")
 	}
-
-	ticker := exponentialTicker(client.RequestsPerSec)
-	done := make(chan bool)
-	counter := make(chan int64, client.MaxConcurrentConnections)
-
-	client.setupTestDuration(done)
-	util.SetupGracefulShutdown(func() {
-		done <- true
-	})
-
-	for {
-		if len(counter) == cap(counter) {
-			fmt.Printf("maxConcurrentConnections=%d reached\n", client.MaxConcurrentConnections)
-			continue
-		}
-		id := time.Now().UnixNano()
-		counter <- id
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			if err := client.newReq(sessions, id); err != nil {
-				return
-			}
-			<-counter
-		}()
-
-		select {
-		case <-done:
-			ticker.Stop()
-			break
-		case <-ticker.C:
-		}
-	}
-	fmt.Printf("Waiting %d connections...\n", len(counter))
-	wg.Wait()
-	fmt.Println("Stopped")
 
 	return nil
 }
 
-// newReq creates and sends a new request to the destinations
-func (client *Client) newReq(session []quic.EarlyConnection, id int64) error {
+func (client *Client) close() {
+	for _, s := range client.Connections {
+		s.CloseWithError(0x1337, "Closing client's connection")
+	}
+}
+
+// NewReq creates and sends a new request to the destinations
+func (client *Client) NewReq(session []quic.EarlyConnection, id int64) error {
 	idReq := client.IdDevice + "_" + strconv.FormatInt(id, 10)
 	req := util.RoPEMessage{
 		ReqID: idReq,
