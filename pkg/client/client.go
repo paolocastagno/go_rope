@@ -51,28 +51,31 @@ type Client struct {
 func (client *Client) InitClient(quicConf *quic.Config, CfgFile string, initLogic func(*toml.Tree)) error {
 	fmt.Printf("Running client version %s\n", GitCommit)
 	client.CfgFile = CfgFile
-	// Load client configuration file
-	if client.CfgFile != "" {
-		config, err := toml.LoadFile(client.CfgFile)
-		if err != nil {
-			return fmt.Errorf("error loading configuration: %v", err)
-		} else {
-			initLogic(config)
-		}
-		fmt.Println("Loading forwarding policy:", client.CfgFile)
-		client.Application.InitApp(config)
-	} else {
-		return errors.New("no forwarding policy specified")
+
+	// Load and parse the configuration file
+	config, err := client.loadConfig()
+	if err != nil {
+		return err
 	}
-	fmt.Printf("Starting idDevice: %s\n", client.IdDevice)
+
+	// Parse the policy section
+	if err := client.parsePolicy(config); err != nil {
+		return err
+	}
+
+	// Parse the application section
+	if err := client.parseApplication(config); err != nil {
+		return err
+	}
+
+	// Initialize application logic
+	initLogic(config)
+	client.Application.InitApp(config)
 
 	// Initialize the logger
-	if err := util.InitLogger(); err != nil {
-		panic(err)
+	if err := client.initializeLogger(); err != nil {
+		return err
 	}
-	defer util.CloseLogger()
-
-	client.LoggerEnabled = util.IsLoggerEnabled()
 
 	// Start the client main process
 	if err := client.clientMain(client.Destinations, quicConf); err != nil {
@@ -82,6 +85,64 @@ func (client *Client) InitClient(quicConf *quic.Config, CfgFile string, initLogi
 	fmt.Println("Finished! Waiting 20 seconds...")
 	time.Sleep(20 * time.Second)
 
+	return nil
+}
+
+// Helper function to load the configuration file
+func (client *Client) loadConfig() (*toml.Tree, error) {
+	if client.CfgFile == "" {
+		return nil, errors.New("no configuration file specified")
+	}
+
+	config, err := toml.LoadFile(client.CfgFile)
+	if err != nil {
+		return nil, fmt.Errorf("error loading configuration: %v", err)
+	}
+
+	return config, nil
+}
+
+// Helper function to parse the policy section
+func (client *Client) parsePolicy(config *toml.Tree) error {
+	policyConfig, ok := config.Get("policy").(*toml.Tree)
+	if !ok {
+		return errors.New("missing or invalid 'policy' section in configuration")
+	}
+
+	client.MaxConcurrentConnections = uint(policyConfig.GetDefault("max_connections", 10).(int64))
+	fmt.Printf("Loaded policy: forwarding_policy=%s, max_connections=%d\n",
+		policyConfig.GetDefault("forwarding_policy", "round_robin").(string),
+		client.MaxConcurrentConnections,
+	)
+
+	return nil
+}
+
+// Helper function to parse the application section
+func (client *Client) parseApplication(config *toml.Tree) error {
+	appConfig, ok := config.Get("application").(*toml.Tree)
+	if !ok {
+		return errors.New("missing or invalid 'application' section in configuration")
+	}
+
+	client.Timeout = GetDuration(appConfig.ToMap(), "timeout", "30s")
+	fmt.Printf("Loaded application: app_name=%s, log_level=%s, timeout=%v\n",
+		appConfig.GetDefault("app_name", "MyApp").(string),
+		appConfig.GetDefault("log_level", "info").(string),
+		client.Timeout,
+	)
+
+	return nil
+}
+
+// Helper function to initialize the logger
+func (client *Client) initializeLogger() error {
+	if err := util.InitLogger(); err != nil {
+		return fmt.Errorf("failed to initialize logger: %v", err)
+	}
+	defer util.CloseLogger()
+
+	client.LoggerEnabled = util.IsLoggerEnabled()
 	return nil
 }
 
@@ -146,6 +207,8 @@ func (client *Client) clientMain(destinations []string, quicConf *quic.Config) e
 	}
 
 	ctx := context.Background()
+	// 	ctx, cancel := context.WithTimeout(context.Background(), client.Timeout)
+	// 	defer cancel()
 	ctx = context.WithValue(ctx, "source", client.IdDevice)
 
 	fmt.Printf("Requests timeout set to %v\n", client.Timeout)
