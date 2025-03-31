@@ -48,9 +48,9 @@ type Client struct {
 }
 
 // InitClient initializes the client with the given configuration file and QUIC configuration
-func (client *Client) InitClient(quicConf *quic.Config, initLogic func(*toml.Tree)) error {
+func (client *Client) InitClient(quicConf *quic.Config, CfgFile string, initLogic func(*toml.Tree)) error {
 	fmt.Printf("Running client version %s\n", GitCommit)
-
+	client.CfgFile = CfgFile
 	// Load client configuration file
 	if client.CfgFile != "" {
 		config, err := toml.LoadFile(client.CfgFile)
