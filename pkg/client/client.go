@@ -59,22 +59,24 @@ func (client *Client) InitClient(quicConf *quic.Config, CfgFile string, initLogi
 	}
 
 	// Parse the policy section
-	if err := client.parsePolicy(config); err != nil {
+	if err := client.parseApplication(config); err != nil {
 		return err
 	}
 
 	// Parse the application section
-	if err := client.parseApplication(config); err != nil {
-		return err
-	}
+	// if err := client.parseApplication(config); err != nil {
+	// 	return err
+	// }
 
 	// Initialize application logic
 	initLogic(config)
 	client.Application.InitApp(config)
 
 	// Initialize the logger
-	if err := client.initializeLogger(); err != nil {
-		return err
+	if client.LoggerEnabled {
+		if err := client.initializeLogger(); err != nil {
+			return err
+		}
 	}
 
 	// Start the client main process
@@ -102,16 +104,16 @@ func (client *Client) loadConfig() (*toml.Tree, error) {
 	return config, nil
 }
 
-// Helper function to parse the policy section
-func (client *Client) parsePolicy(config *toml.Tree) error {
-	policyConfig, ok := config.Get("policy").(*toml.Tree)
+// Helper function to parse the application section
+func (client *Client) parseApplication(config *toml.Tree) error {
+	appConfig, ok := config.Get("app").(*toml.Tree)
 	if !ok {
-		return errors.New("missing or invalid 'policy' section in configuration")
+		return errors.New("missing or invalid 'app' section in configuration")
 	}
 
-	client.MaxConcurrentConnections = uint(policyConfig.GetDefault("max_connections", 10).(int64))
-	fmt.Printf("Loaded policy: forwarding_policy=%s, max_connections=%d\n",
-		policyConfig.GetDefault("forwarding_policy", "round_robin").(string),
+	client.MaxConcurrentConnections = uint(appConfig.GetDefault("max_connections", 10).(int64))
+	fmt.Printf("Loaded app: app=%s, max_connections=%d\n",
+		appConfig.GetDefault("app", "round_robin").(string),
 		client.MaxConcurrentConnections,
 	)
 
@@ -119,21 +121,21 @@ func (client *Client) parsePolicy(config *toml.Tree) error {
 }
 
 // Helper function to parse the application section
-func (client *Client) parseApplication(config *toml.Tree) error {
-	appConfig, ok := config.Get("application").(*toml.Tree)
-	if !ok {
-		return errors.New("missing or invalid 'application' section in configuration")
-	}
+// func (client *Client) parseApplication(config *toml.Tree) error {
+// 	appConfig, ok := config.Get("application").(*toml.Tree)
+// 	if !ok {
+// 		return errors.New("missing or invalid 'application' section in configuration")
+// 	}
 
-	client.Timeout = GetDuration(appConfig.ToMap(), "timeout", "30s")
-	fmt.Printf("Loaded application: app_name=%s, log_level=%s, timeout=%v\n",
-		appConfig.GetDefault("app_name", "MyApp").(string),
-		appConfig.GetDefault("log_level", "info").(string),
-		client.Timeout,
-	)
+// 	client.Timeout = GetDuration(appConfig.ToMap(), "timeout", "30s")
+// 	fmt.Printf("Loaded application: app_name=%s, log_level=%s, timeout=%v\n",
+// 		appConfig.GetDefault("app_name", "MyApp").(string),
+// 		appConfig.GetDefault("log_level", "info").(string),
+// 		client.Timeout,
+// 	)
 
-	return nil
-}
+// 	return nil
+// }
 
 // Helper function to initialize the logger
 func (client *Client) initializeLogger() error {
