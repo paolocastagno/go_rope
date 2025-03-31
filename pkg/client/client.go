@@ -58,7 +58,7 @@ func (client *Client) InitClient(quicConf *quic.Config, CfgFile string, initLogi
 		return err
 	}
 
-	// Parse the policy section
+	// Parse the app section
 	if err := client.parseApplication(config); err != nil {
 		return err
 	}
