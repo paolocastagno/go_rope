@@ -11,6 +11,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/pelletier/go-toml"
+
 	influxdb2 "github.com/influxdata/influxdb-client-go/v2"
 	influxdb2API "github.com/influxdata/influxdb-client-go/v2/api"
 )
@@ -78,15 +80,23 @@ func SetLoggerParam() {
 	flag.UintVar(&loggerFlushInterval, "loggerFlushInterval", DefConfLog.LoggerFlushInterval, "influxdb milliseconds interval to force flush")
 }
 
-func SetLoggerParamFromConf(conf LoggerConf) {
-	loggerToken = conf.LoggerToken
-	loggerAddress = conf.LoggerAddress
-	bucket = conf.LoggerBucket
-	org = conf.LoggerOrg
-	loggerBatchSize = conf.LoggerBatchSize
-	loggerFlushInterval = conf.LoggerFlushInterval
-	// Write the logger configuration to a global variable accessibe from outside the module (substitue with a function)
-	LoggerCfg = conf
+func SetLoggerParamFromConf(cfg *toml.Tree) {
+	loggerToken, _ = cfg.Get("logger.token").(string)
+	loggerAddress, _ = cfg.Get("logger.address").(string)
+	bucket, _ = cfg.Get("logger.bucket").(string)
+	org, _ = cfg.Get("logger.org").(string)
+	loggerBatchSize, _ = cfg.Get("logger.batchSize").(uint)
+	loggerFlushInterval, _ = cfg.Get("logger.flushInterval").(uint)
+
+	// Update the global LoggerCfg variable
+	LoggerCfg = LoggerConf{
+		LoggerToken:         loggerToken,
+		LoggerAddress:       loggerAddress,
+		LoggerBucket:        bucket,
+		LoggerOrg:           org,
+		LoggerBatchSize:     loggerBatchSize,
+		LoggerFlushInterval: loggerFlushInterval,
+	}
 }
 
 func InitLogger() error {
