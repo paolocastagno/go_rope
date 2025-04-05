@@ -76,7 +76,7 @@ func loadConfig(client *Client, initLogic func(*toml.Tree) *interface{}) error {
 	cfgMap := config.ToMap()
 	fmt.Printf("Config contents: %v\n", cfgMap) // Debugging log
 	client.IdDevice = GetString(cfgMap, "id_device", "default_id")
-	client.Destinations = config.Get("destinations").([]string)
+	client.Destinations = config.Get("destination").([]string)
 	client.MaxConcurrentConnections = config.Get("max_concurrent_connections").(uint)
 	client.TestDuration = GetDuration(cfgMap, "test_duration", "0s")
 	client.Timeout = GetDuration(cfgMap, "timeout", "30s")
