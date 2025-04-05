@@ -21,17 +21,10 @@ import (
 var GitCommit = "master"
 
 // ForwardDecision is a function that decides the forwarding logic for a message
-var ForwardDecision func(msg *util.RoPEMessage, destinations []string) string
+var ForwardDecision func(msg *util.RoPEMessage, destinations []string, application *interface{}) string
 
 // ForwardSetLastResponse is a function that sets the last response for a message
-var ForwardSetLastResponse func(util.RoPEMessage)
-
-// ApplicationLogic defines the interface for application logic
-type ApplicationLogic interface {
-	InitApp(*toml.Tree)
-	App(*util.RoPEMessage, []string) string
-	pktSnd(*util.RoPEMessage)
-}
+var ForwardSetLastResponse func(util.RoPEMessage, *interface{})
 
 // Client represents the client configuration
 type Client struct {
@@ -44,39 +37,18 @@ type Client struct {
 	LoggerEnabled            bool
 	Connections              []quic.EarlyConnection
 	Counter                  chan int64
-	Application              ApplicationLogic
+	Application              *interface{} // Pointer to an interface
 }
 
 // InitClient initializes the client with the given configuration file and QUIC configuration
-func (client *Client) InitClient(quicConf *quic.Config, CfgFile string, initLogic func(*toml.Tree)) error {
+func (client *Client) InitClient(quicConf *quic.Config, CfgFile string, initLogic func(*toml.Tree) *interface{}) error {
 	fmt.Printf("Running client version %s\n", GitCommit)
 	client.CfgFile = CfgFile
 
 	// Load and parse the configuration file
-	config, err := client.loadConfig()
+	err := loadConfig(client, initLogic)
 	if err != nil {
 		return err
-	}
-
-	// Parse the app section
-	if err := client.parseApplication(config); err != nil {
-		return err
-	}
-
-	// Parse the application section
-	// if err := client.parseApplication(config); err != nil {
-	// 	return err
-	// }
-
-	// Initialize application logic
-	initLogic(config)
-	client.Application.InitApp(config)
-
-	// Initialize the logger
-	if client.LoggerEnabled {
-		if err := client.initializeLogger(); err != nil {
-			return err
-		}
 	}
 
 	// Start the client main process
@@ -91,60 +63,39 @@ func (client *Client) InitClient(quicConf *quic.Config, CfgFile string, initLogi
 }
 
 // Helper function to load the configuration file
-func (client *Client) loadConfig() (*toml.Tree, error) {
+func loadConfig(client *Client, initLogic func(*toml.Tree) *interface{}) error {
 	if client.CfgFile == "" {
-		return nil, errors.New("no configuration file specified")
+		return errors.New("no configuration file specified")
 	}
 
 	config, err := toml.LoadFile(client.CfgFile)
 	if err != nil {
-		return nil, fmt.Errorf("error loading configuration: %v", err)
+		return fmt.Errorf("error loading configuration: %v", err)
 	}
 
-	return config, nil
-}
-
-// Helper function to parse the application section
-func (client *Client) parseApplication(config *toml.Tree) error {
-	appConfig, ok := config.Get("app").(*toml.Tree)
+	cfgMap := config.ToMap()
+	fmt.Printf("Config contents: %v\n", cfgMap) // Debugging log
+	client.IdDevice = GetString(cfgMap, "id_device", "default_id")
+	client.Destinations = config.Get("destinations").([]string)
+	client.MaxConcurrentConnections = config.Get("max_concurrent_connections").(uint)
+	client.TestDuration = GetDuration(cfgMap, "test_duration", "0s")
+	client.Timeout = GetDuration(cfgMap, "timeout", "30s")
+	client.Counter = make(chan int64, client.MaxConcurrentConnections)
+	client.LoggerEnabled = config.GetDefault("logger_enabled", false).(bool)
+	client.Connections = make([]quic.EarlyConnection, 0, client.MaxConcurrentConnections)
+	applicationConfig, ok := config.Get("application").(*toml.Tree)
 	if !ok {
-		return errors.New("missing or invalid 'app' section in configuration")
+		return errors.New("missing or invalid 'application' section in configuration")
 	}
+	client.Application = initLogic(applicationConfig)
 
-	client.MaxConcurrentConnections = uint(appConfig.GetDefault("max_connections", 10).(int64))
-	fmt.Printf("Loaded app: app=%s, max_connections=%d\n",
-		appConfig.GetDefault("app", "round_robin").(string),
-		client.MaxConcurrentConnections,
-	)
-
-	return nil
-}
-
-// Helper function to parse the application section
-// func (client *Client) parseApplication(config *toml.Tree) error {
-// 	appConfig, ok := config.Get("application").(*toml.Tree)
-// 	if !ok {
-// 		return errors.New("missing or invalid 'application' section in configuration")
-// 	}
-
-// 	client.Timeout = GetDuration(appConfig.ToMap(), "timeout", "30s")
-// 	fmt.Printf("Loaded application: app_name=%s, log_level=%s, timeout=%v\n",
-// 		appConfig.GetDefault("app_name", "MyApp").(string),
-// 		appConfig.GetDefault("log_level", "info").(string),
-// 		client.Timeout,
-// 	)
-
-// 	return nil
-// }
-
-// Helper function to initialize the logger
-func (client *Client) initializeLogger() error {
-	if err := util.InitLogger(); err != nil {
-		return fmt.Errorf("failed to initialize logger: %v", err)
+	if client.LoggerEnabled {
+		loggercfg, ok := config.Get("logger").(*toml.Tree)
+		if !ok {
+			return errors.New("no logger configuration specified")
+		}
+		util.SetLoggerParamFromConf(loggercfg)
 	}
-	defer util.CloseLogger()
-
-	client.LoggerEnabled = util.IsLoggerEnabled()
 	return nil
 }
 
@@ -209,8 +160,6 @@ func (client *Client) clientMain(destinations []string, quicConf *quic.Config) e
 	}
 
 	ctx := context.Background()
-	// 	ctx, cancel := context.WithTimeout(context.Background(), client.Timeout)
-	// 	defer cancel()
 	ctx = context.WithValue(ctx, "source", client.IdDevice)
 
 	fmt.Printf("Requests timeout set to %v\n", client.Timeout)
@@ -245,7 +194,7 @@ func (client *Client) NewReq(session []quic.EarlyConnection, id int64) error {
 	}
 
 	// Determine the destination for the request
-	dest := ForwardDecision(&req, client.Destinations)
+	dest := ForwardDecision(&req, client.Destinations, client.Application)
 	idxdest := 0
 	for i, d := range client.Destinations {
 		if d == dest {
@@ -278,7 +227,7 @@ func (client *Client) NewReq(session []quic.EarlyConnection, id int64) error {
 		}
 		rcv = true
 		wg.Add(1)
-		go forwardResponse(packet, &wg)
+		go forwardResponse(packet, &wg, client.Application)
 	}
 	wg.Wait()
 
@@ -291,12 +240,12 @@ func (client *Client) NewReq(session []quic.EarlyConnection, id int64) error {
 }
 
 // forwardResponse handles the received response asynchronously
-func forwardResponse(packet util.RoPEMessage, wg *sync.WaitGroup) {
+func forwardResponse(packet util.RoPEMessage, wg *sync.WaitGroup, app *interface{}) {
 	defer wg.Done()
 	fmt.Println("Response received: type:", packet.Type)
 	fmt.Println("Response received: ID:", packet.ReqID)
 	fmt.Println("Response received: source:", packet.Source)
 	if ForwardSetLastResponse != nil {
-		ForwardSetLastResponse(packet)
+		ForwardSetLastResponse(packet, app)
 	}
 }
