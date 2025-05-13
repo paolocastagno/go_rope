@@ -152,7 +152,3 @@ responseSize = 100
 - `pkg/server`: Contains server implementation with routing and response logic.
 - `pkg/util`: Contains utility functions for moving averages, histograms, logging, and graceful shutdown.
 - `pkg/config`: Contains configuration management using TOML files.
-
-## License
-
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
