@@ -1,9 +1,12 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"log"
 	"time"
+
+	"encoding/binary"
 
 	"github.com/paolocastagno/go_rope/pkg/server"
 	"github.com/paolocastagno/go_rope/pkg/util"
@@ -23,7 +26,6 @@ type app_cfg struct {
 
 var (
 	srv_app app_cfg
-	btime   time.Time
 
 	// For computing moving average
 	stime     = time.Time{}
@@ -35,27 +37,66 @@ var (
 	bDown = util.NewMavg(tw)
 )
 
-func InitReply(conf *toml.Tree) {
+func InitReply(conf *toml.Tree) *interface{} {
 	fmt.Print(conf)
-	srv_app.procTime, _ = time.ParseDuration(conf.Get("variables.processing_time").(string))
-	srv_app.packets = conf.Get("variables.packets").(int64)
-	srv_app.packetSize = conf.Get("variables.packet_size").(int64)
 
-	server.ForwardDecision = ReplyDecision
-	server.ForwardBlock = nil
-	server.ForwardSetLastResponse = ReplySetLastResponse
+	// Initialize srv_app
+	srv_app.packets = 1 // Default value
+	if packets, ok := conf.Get("application.Packets").(int64); ok {
+		srv_app.packets = packets
+	} else {
+		fmt.Println("Warning: 'application.Packets' is missing or invalid, using default value 1")
+	}
+
+	srv_app.packetSize = 64 // Default value
+	if packetSize, ok := conf.Get("application.Packet_size").(int64); ok {
+		srv_app.packetSize = packetSize
+	} else {
+		fmt.Println("Warning: 'application.Packet_size' is missing or invalid, using default value 64")
+	}
+
+	// Return the application configuration
+	srvinterface := new(interface{})
+	*srvinterface = srv_app
+	return srvinterface
 }
 
 func ReplyDecision(req *util.RoPEMessage, session *map[string]quic.EarlyConnection, i int64) bool {
 	// Emulate processing time
 	time.Sleep(srv_app.procTime)
+
+	// Extract the timestamp from the request's Body field
+	var timestamp uint64
+	if len(req.Body) >= 8 {
+		timestamp = binary.BigEndian.Uint64(req.Body[:8]) // Deserialize the timestamp
+	} else {
+		fmt.Println("Warning: Request Body is too short to contain a timestamp")
+		timestamp = 0 // Default to zeroed timestamp
+	}
+
+	// Prepare the response
 	req.Body = make([]byte, req.ResSize)
+	binary.BigEndian.PutUint64(req.Body[:8], timestamp) // Serialize the timestamp into the response's Body field
+
+	// If the response is fragmented, ensure the timestamp is copied into all fragments
+	for i := 0; i < len(req.Body); i += int(srv_app.packetSize) {
+		end := i + int(srv_app.packetSize)
+		if end > len(req.Body) {
+			end = len(req.Body)
+		}
+		copy(req.Body[i:i+8], req.Body[:8]) // Copy the timestamp into each fragment
+	}
+
 	req.Type = util.Response
+
+	// Swap Source and Destination
 	tmp := req.Source
 	req.Source = req.Destination
 	req.Destination = tmp
+
+	// Update server statistics
 	srv_app.rcv += int64(len(req.Body))
-	if (stime == time.Time{}) {
+	if stime == (time.Time{}) {
 		stime = time.Now()
 	} else {
 		if time.Now().After(stime.Add(obswindow)) {
@@ -83,24 +124,32 @@ func ReplySetLastResponse(lastResp *util.RoPEMessage) {
 }
 
 func main() {
-	srv := server.NewServer(
-		"Server",
-		"localhost:8080",
-		"app_server.toml",
-		10,
-		5,
-		30*time.Second,
-	)
-	server.ForwardDecision = ReplyDecision
-	server.ForwardSetLastResponse = ReplySetLastResponse
+	// Parse command-line arguments
+	configFile := flag.String("config", "", "Path to the configuration file")
+	flag.Parse()
+	if *configFile == "" {
+		log.Fatal("Configuration file is required")
+	} else {
+		fmt.Printf("Configuration file: %s\n", *configFile)
+	}
+	// Create a new server instance
+	srv := new(server.Server)
 
+	// QUIC configuration
 	quicConf := &quic.Config{
 		MaxIdleTimeout:     10 * time.Second,
 		MaxIncomingStreams: 10000000,
 		KeepAlivePeriod:    10 * time.Second,
 	}
 
-	if err := srv.InitServer(quicConf, InitReply); err != nil {
+	// Initialize the server
+	err := server.InitServer(srv, quicConf, InitReply, *configFile)
+	if err != nil {
+		log.Fatalf("Error initializing server: %v", err)
+	}
+
+	// Run the server
+	if err := server.Run(srv, quicConf, ReplyDecision, ReplySetLastResponse, nil); err != nil {
 		log.Fatalf("Error running server: %v", err)
 	}
 }

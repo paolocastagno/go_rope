@@ -1,8 +1,15 @@
-[logic]
-name = "fixed"
-init = "InitFixed"
+[config]
+IdDevice=1
+RequestsPerSec=1
+MaxConcurrentConnections=20000
+TestDuration="30s"
+Timeout="40s"
+AppCfg="cfg.toml"
+destinations=["localhost:8080"]
 
-[variables]
-destination = "localhost:8080"
-requestSize = 100
-responseSize = 100
+[application]
+name="fixed"
+init="InitFixed"
+destinations=["localhost:8080"]
+requestSize=100
+responseSize=100

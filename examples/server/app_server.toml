@@ -1,7 +1,12 @@
-[logic]
-name = "app_srv"
+[application]
+Name="app_srv"
+Packets=1
+Packet_size=64
 
-[variables]
-processing_time = "50ms"
-packets = 1
-packet_size=64
+[configuration]
+BufSize=100
+IdDevice="A"
+ListenAddress="localhost:8080"
+ProcessingTime="50ms"
+Workers=1
+Timeout="30s"

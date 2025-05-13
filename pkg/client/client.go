@@ -31,6 +31,7 @@ type Client struct {
 	IdDevice                 string
 	Destinations             []string
 	MaxConcurrentConnections uint
+	Done                     chan bool
 	TestDuration             time.Duration
 	Timeout                  time.Duration
 	CfgFile                  string
@@ -45,19 +46,22 @@ func (client *Client) InitClient(quicConf *quic.Config, CfgFile string, initLogi
 	fmt.Printf("Running client version %s\n", GitCommit)
 	client.CfgFile = CfgFile
 
+	// Initialize the Done channel
+	client.Done = make(chan bool)
+
 	// Load and parse the configuration file
 	err := loadConfig(client, initLogic)
 	if err != nil {
 		return err
 	}
 
+	// Set up the test duration if defined
+	client.setupTestDuration()
+
 	// Start the client main process
 	if err := client.clientMain(client.Destinations, quicConf); err != nil {
 		fmt.Println("Error!", err)
 	}
-
-	fmt.Println("Finished! Waiting 20 seconds...")
-	time.Sleep(20 * time.Second)
 
 	return nil
 }
@@ -75,18 +79,38 @@ func loadConfig(client *Client, initLogic func(*toml.Tree) *interface{}) error {
 
 	cfgMap := config.ToMap()
 	fmt.Printf("Config contents: %v\n", cfgMap) // Debugging log
-	client.IdDevice = GetString(cfgMap, "id_device", "default_id")
-	client.Destinations = config.Get("destinations").([]string)
-	client.MaxConcurrentConnections = config.Get("max_concurrent_connections").(uint)
-	client.TestDuration = GetDuration(cfgMap, "test_duration", "0s")
-	client.Timeout = GetDuration(cfgMap, "timeout", "30s")
+
+	client.IdDevice = GetString(cfgMap["config"].(map[string]interface{}), "id_device", "default_id")
+
+	// Safely retrieve the destinations from the config section
+	configDestinations, ok := config.Get("config.destinations").([]interface{})
+	if !ok || len(configDestinations) == 0 {
+		return errors.New("missing or invalid 'destinations' key in 'config' section")
+	}
+
+	// Convert []interface{} to []string
+	client.Destinations = make([]string, len(configDestinations))
+	for i, d := range configDestinations {
+		str, ok := d.(string)
+		if !ok {
+			return fmt.Errorf("invalid destination value at index %d", i)
+		}
+		client.Destinations[i] = str
+	}
+
+	client.MaxConcurrentConnections = uint(config.GetDefault("config.MaxConcurrentConnections", int64(1)).(int64))
+	client.TestDuration = GetDuration(cfgMap["config"].(map[string]interface{}), "TestDuration", "0s")
+	client.Timeout = GetDuration(cfgMap["config"].(map[string]interface{}), "timeout", "30s")
 	client.Counter = make(chan int64, client.MaxConcurrentConnections)
 	client.LoggerEnabled = config.GetDefault("logger_enabled", false).(bool)
 	client.Connections = make([]quic.EarlyConnection, 0, client.MaxConcurrentConnections)
+
+	// Retrieve the application section
 	applicationConfig, ok := config.Get("application").(*toml.Tree)
 	if !ok {
 		return errors.New("missing or invalid 'application' section in configuration")
 	}
+
 	client.Application = initLogic(applicationConfig)
 
 	if client.LoggerEnabled {
@@ -137,15 +161,15 @@ func (client *Client) PrintParams() {
 	fmt.Println("CfgFile:", client.CfgFile)
 }
 
-// SetupTestDuration sets up the test duration timer
-func (client *Client) SetupTestDuration(done chan<- bool) {
+// setupTestDuration sets up the test duration timer
+func (client *Client) setupTestDuration() {
 	if client.TestDuration > 0 {
 		fmt.Printf("Test duration set to %v\n", client.TestDuration)
 		testTimer := time.NewTimer(client.TestDuration)
 		go func() {
 			<-testTimer.C
 			fmt.Println("Test ended")
-			done <- true
+			client.Done <- true
 		}()
 	} else {
 		fmt.Println("No test duration set, running until stopped")

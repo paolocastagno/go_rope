@@ -2,9 +2,9 @@ package routing
 
 import (
 	"fmt"
+	"os"
 	"time"
 
-	"github.com/paolocastagno/go_rope/pkg/config"
 	"github.com/paolocastagno/go_rope/pkg/util"
 
 	"github.com/pelletier/go-toml"
@@ -22,12 +22,17 @@ const twind = 100
 var b_u = util.NewMavg(twind)
 var b_d = util.NewMavg(twind)
 
+func Die(msg ...interface{}) {
+	fmt.Println(msg...)
+	os.Exit(1)
+}
+
 func InitFixed(conf *toml.Tree, proxy *Proxy) {
 
 	dest := conf.Get("variables.dest")
 
 	if dest == nil {
-		config.Die("No destination specified")
+		Die("No destination specified")
 	}
 	dhost := dest.(string)
 	fmt.Printf("Fixed routing toward:\t %s\n", dhost)

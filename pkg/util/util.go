@@ -42,6 +42,7 @@ type RoPEMessage struct {
 	Source      string
 	Hop         string
 	Destination string
+	Timestamp   time.Time
 }
 
 // Setup a bare-bones TLS config for the server and the proxy
@@ -286,4 +287,55 @@ func Mavg_push(x *Mavg, y int64) {
 func Mavg_eval(x Mavg, window int64) float64 {
 	// fmt.Printf("\tMavg_eval(x.sum - %f, len(x.vec) %d): %f\n", x.sum, len(x.vec), float64(x.sum)/float64(window*int64(len(x.vec))))
 	return float64(x.sum) / float64(window*int64(len(x.vec)))
+}
+
+// ///////////// HISTOGRAM /////////////////
+type Histogram struct {
+	bins     map[int]int
+	binSize  float64
+	minValue float64
+	maxValue float64
+	mutex    sync.Mutex
+	observed int
+}
+
+func NewHistogram(binSize float64) *Histogram {
+	if binSize <= 0 {
+		panic("Bin size must be greater than zero")
+	}
+	return &Histogram{
+		bins:    make(map[int]int),
+		binSize: binSize,
+	}
+}
+
+func (h *Histogram) Add(value float64) {
+	h.mutex.Lock()
+	defer h.mutex.Unlock()
+
+	// Dynamically adjust bin size if needed
+	if h.observed == 0 {
+		h.minValue = value
+		h.maxValue = value
+	} else {
+		h.minValue = math.Min(h.minValue, value)
+		h.maxValue = math.Max(h.maxValue, value)
+	}
+
+	h.observed++
+
+	// Determine the bin index
+	binIndex := int(math.Floor(value / h.binSize))
+	h.bins[binIndex]++
+}
+
+func (h *Histogram) Print() {
+	h.mutex.Lock()
+	defer h.mutex.Unlock()
+
+	fmt.Println("Histogram:")
+	for bin, count := range h.bins {
+		// Use higher precision for small bin sizes
+		fmt.Printf("Bin %d (%.6f - %.6f): %d\n", bin, float64(bin)*h.binSize, float64(bin+1)*h.binSize, count)
+	}
 }
