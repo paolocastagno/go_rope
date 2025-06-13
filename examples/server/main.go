@@ -42,14 +42,14 @@ func InitReply(conf *toml.Tree) *interface{} {
 
 	// Initialize srv_app
 	srv_app.packets = 1 // Default value
-	if packets, ok := conf.Get("application.Packets").(int64); ok {
+	if packets, ok := conf.Get("Packets").(int64); ok {
 		srv_app.packets = packets
 	} else {
 		fmt.Println("Warning: 'application.Packets' is missing or invalid, using default value 1")
 	}
 
 	srv_app.packetSize = 64 // Default value
-	if packetSize, ok := conf.Get("application.Packet_size").(int64); ok {
+	if packetSize, ok := conf.Get("Packet_size").(int64); ok {
 		srv_app.packetSize = packetSize
 	} else {
 		fmt.Println("Warning: 'application.Packet_size' is missing or invalid, using default value 64")
