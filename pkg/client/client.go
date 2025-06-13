@@ -266,9 +266,9 @@ func (client *Client) NewReq(session []quic.EarlyConnection, id int64) error {
 // forwardResponse handles the received response asynchronously
 func forwardResponse(packet util.RoPEMessage, wg *sync.WaitGroup, app *interface{}) {
 	defer wg.Done()
-	fmt.Println("Response received: type:", packet.Type)
-	fmt.Println("Response received: ID:", packet.ReqID)
-	fmt.Println("Response received: source:", packet.Source)
+	// fmt.Println("Response received: type:", packet.Type)
+	// fmt.Println("Response received: ID:", packet.ReqID)
+	// fmt.Println("Response received: source:", packet.Source)
 	if ForwardSetLastResponse != nil {
 		ForwardSetLastResponse(packet, app)
 	}
