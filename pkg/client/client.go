@@ -83,9 +83,9 @@ func loadConfig(client *Client, initLogic func(*toml.Tree) *interface{}) error {
 	client.IdDevice = GetString(cfgMap["config"].(map[string]interface{}), "id_device", "default_id")
 
 	// Safely retrieve the destinations from the config section
-	configDestinations, ok := config.Get("config.destinations").([]interface{})
+	configDestinations, ok := config.Get("configuration.destinations").([]interface{})
 	if !ok || len(configDestinations) == 0 {
-		return errors.New("missing or invalid 'destinations' key in 'config' section")
+		return errors.New("missing or invalid 'destinations' key in 'configuration' section")
 	}
 
 	// Convert []interface{} to []string
@@ -98,9 +98,9 @@ func loadConfig(client *Client, initLogic func(*toml.Tree) *interface{}) error {
 		client.Destinations[i] = str
 	}
 
-	client.MaxConcurrentConnections = uint(config.GetDefault("config.MaxConcurrentConnections", int64(1)).(int64))
-	client.TestDuration = GetDuration(cfgMap["config"].(map[string]interface{}), "TestDuration", "0s")
-	client.Timeout = GetDuration(cfgMap["config"].(map[string]interface{}), "timeout", "30s")
+	client.MaxConcurrentConnections = uint(config.GetDefault("configuration.MaxConcurrentConnections", int64(1)).(int64))
+	client.TestDuration = GetDuration(cfgMap["configuration"].(map[string]interface{}), "TestDuration", "0s")
+	client.Timeout = GetDuration(cfgMap["configuration"].(map[string]interface{}), "timeout", "30s")
 	client.Counter = make(chan int64, client.MaxConcurrentConnections)
 	client.LoggerEnabled = config.GetDefault("logger_enabled", false).(bool)
 	client.Connections = make([]quic.EarlyConnection, 0, client.MaxConcurrentConnections)
