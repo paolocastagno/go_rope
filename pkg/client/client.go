@@ -80,7 +80,8 @@ func loadConfig(client *Client, initLogic func(*toml.Tree) *interface{}) error {
 	cfgMap := config.ToMap()
 	fmt.Printf("Config contents: %v\n", cfgMap) // Debugging log
 
-	client.IdDevice = GetString(cfgMap["config"].(map[string]interface{}), "id_device", "default_id")
+	// Use the correct section name: "configuration" instead of "config"
+	client.IdDevice = GetString(cfgMap["configuration"].(map[string]interface{}), "id_device", "default_id")
 
 	// Safely retrieve the destinations from the config section
 	configDestinations, ok := config.Get("configuration.destinations").([]interface{})
