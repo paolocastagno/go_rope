@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"math"
 	"math/big"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -293,8 +294,6 @@ func Mavg_eval(x Mavg, window int64) float64 {
 type Histogram struct {
 	bins     map[int]int
 	binSize  float64
-	minValue float64
-	maxValue float64
 	mutex    sync.Mutex
 	observed int
 }
@@ -313,29 +312,23 @@ func (h *Histogram) Add(value float64) {
 	h.mutex.Lock()
 	defer h.mutex.Unlock()
 
-	// Dynamically adjust bin size if needed
-	if h.observed == 0 {
-		h.minValue = value
-		h.maxValue = value
-	} else {
-		h.minValue = math.Min(h.minValue, value)
-		h.maxValue = math.Max(h.maxValue, value)
-	}
-
-	h.observed++
-
-	// Determine the bin index
-	binIndex := int(math.Floor(value / h.binSize))
-	h.bins[binIndex]++
+	bin := int(value / h.binSize)
+	h.bins[bin]++
 }
 
 func (h *Histogram) Print() {
 	h.mutex.Lock()
 	defer h.mutex.Unlock()
 
+	// Collect and sort bin indices
+	binIndices := make([]int, 0, len(h.bins))
+	for bin := range h.bins {
+		binIndices = append(binIndices, bin)
+	}
+	sort.Ints(binIndices)
+
 	fmt.Println("Histogram:")
-	for bin, count := range h.bins {
-		// Use higher precision for small bin sizes
-		fmt.Printf("Bin %d (%.6f - %.6f): %d\n", bin, float64(bin)*h.binSize, float64(bin+1)*h.binSize, count)
+	for _, bin := range binIndices {
+		fmt.Printf("%f, %d\n", float64(bin)*h.binSize, h.bins[bin])
 	}
 }
