@@ -19,6 +19,8 @@ import (
 	"github.com/go-ping/ping"
 	"github.com/go-zeromq/zmq4"
 
+	"os"
+
 	"gonum.org/v1/gonum/stat/distuv"
 )
 
@@ -316,7 +318,7 @@ func (h *Histogram) Add(value float64) {
 	h.bins[bin]++
 }
 
-func (h *Histogram) Print() {
+func (h *Histogram) Print(args ...string) {
 	h.mutex.Lock()
 	defer h.mutex.Unlock()
 
@@ -327,8 +329,20 @@ func (h *Histogram) Print() {
 	}
 	sort.Ints(binIndices)
 
-	fmt.Println("Histogram:")
+	var out *os.File
+	var err error
+	if len(args) > 0 {
+		out, err = os.Create(args[0])
+		if err != nil {
+			fmt.Printf("Error creating file %s: %v\n", args[0], err)
+			return
+		}
+		defer out.Close()
+	} else {
+		out = os.Stdout
+	}
+
 	for _, bin := range binIndices {
-		fmt.Printf("%f, %d\n", float64(bin)*h.binSize, h.bins[bin])
+		fmt.Fprintf(out, "Bin %d: %d\n", bin, h.bins[bin])
 	}
 }
