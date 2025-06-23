@@ -346,3 +346,100 @@ func (h *Histogram) Print(args ...string) {
 		fmt.Fprintf(out, "%d, %d\n", bin, h.bins[bin])
 	}
 }
+
+// ///////////// MATRIX /////////////////
+type Matrix struct {
+	cells    map[int]map[int]int // [row][col] = count
+	binSize  float64
+	colNames map[int]string // Optional: maps column index to name
+	mutex    sync.Mutex
+}
+
+// NewMatrix creates a new Matrix with the given bin size.
+func NewMatrix(binSize float64) *Matrix {
+	return &Matrix{
+		cells:    make(map[int]map[int]int),
+		binSize:  binSize,
+		colNames: make(map[int]string),
+	}
+}
+
+// Add increments the count for the cell at (bin, col).
+// value determines the row (bin), col is the column index.
+func (m *Matrix) Add(value float64, col int) {
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
+
+	bin := int(value / m.binSize)
+	if _, ok := m.cells[bin]; !ok {
+		m.cells[bin] = make(map[int]int)
+	}
+	m.cells[bin][col]++
+}
+
+// AddColumn adds a new column with the given index and optional name.
+func (m *Matrix) AddColumn(col int, name string) {
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
+	m.colNames[col] = name
+}
+
+// Print prints the matrix to stdout or to a file if a filename is provided.
+func (m *Matrix) Print(args ...string) {
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
+
+	// Collect and sort bin (row) indices
+	rowIndices := make([]int, 0, len(m.cells))
+	for row := range m.cells {
+		rowIndices = append(rowIndices, row)
+	}
+	sort.Ints(rowIndices)
+
+	// Collect and sort column indices
+	colSet := make(map[int]struct{})
+	for _, cols := range m.cells {
+		for col := range cols {
+			colSet[col] = struct{}{}
+		}
+	}
+	colIndices := make([]int, 0, len(colSet))
+	for col := range colSet {
+		colIndices = append(colIndices, col)
+	}
+	sort.Ints(colIndices)
+
+	var out *os.File
+	var err error
+	if len(args) > 0 {
+		out, err = os.Create(args[0])
+		if err != nil {
+			fmt.Printf("Error creating file %s: %v\n", args[0], err)
+			return
+		}
+		defer out.Close()
+	} else {
+		out = os.Stdout
+	}
+
+	// Print header
+	fmt.Fprintf(out, "Bin\\Col")
+	for _, col := range colIndices {
+		if name, ok := m.colNames[col]; ok {
+			fmt.Fprintf(out, "\t%s", name)
+		} else {
+			fmt.Fprintf(out, "\t%d", col)
+		}
+	}
+	fmt.Fprintln(out)
+
+	// Print rows
+	for _, row := range rowIndices {
+		fmt.Fprintf(out, "%d", row)
+		for _, col := range colIndices {
+			count := m.cells[row][col]
+			fmt.Fprintf(out, "\t%d", count)
+		}
+		fmt.Fprintln(out)
+	}
+}
