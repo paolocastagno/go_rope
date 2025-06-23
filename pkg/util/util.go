@@ -343,6 +343,6 @@ func (h *Histogram) Print(args ...string) {
 	}
 
 	for _, bin := range binIndices {
-		fmt.Fprintf(out, "Bin %d: %d\n", bin, h.bins[bin])
+		fmt.Fprintf(out, "%d, %d\n", bin, h.bins[bin])
 	}
 }
