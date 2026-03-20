@@ -49,27 +49,27 @@ type RoPEMessage struct {
 }
 
 // Setup a bare-bones TLS config for the server and the proxy
-func GenerateTLSConfig() *tls.Config {
+func GenerateTLSConfig() (*tls.Config, error) {
 	key, err := rsa.GenerateKey(rand.Reader, 1024)
 	if err != nil {
-		panic(err)
+		return nil, fmt.Errorf("failed to generate RSA key: %w", err)
 	}
 	template := x509.Certificate{SerialNumber: big.NewInt(1)}
 	certDER, err := x509.CreateCertificate(rand.Reader, &template, &template, &key.PublicKey, key)
 	if err != nil {
-		panic(err)
+		return nil, fmt.Errorf("failed to create certificate: %w", err)
 	}
 	keyPEM := pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(key)})
 	certPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certDER})
 
 	tlsCert, err := tls.X509KeyPair(certPEM, keyPEM)
 	if err != nil {
-		panic(err)
+		return nil, fmt.Errorf("failed to parse TLS certificate: %w", err)
 	}
 	return &tls.Config{
 		Certificates: []tls.Certificate{tlsCert},
 		NextProtos:   []string{"RoPEProtocol"},
-	}
+	}, nil
 }
 
 /////////////////// PING ///////////////////////
@@ -191,63 +191,143 @@ func ExtractZmqInfo(msg zmq4.Msg, idDevice string) {
 }
 
 // //////////////     DELAY     //////////////////
-func InitDelay(dist string, dist_params interface{}) interface{} {
+func InitDelay(dist string, dist_params interface{}) (interface{}, error) {
 
-	if dist_params == nil {
-		panic("No delay or distribution specified")
+	if dist_params == nil && dist != "no delay" {
+		return nil, fmt.Errorf("distribution '%s' requires parameters", dist)
 	}
+
 	fmt.Printf("Distribution (%s)\n", dist)
 	var distribution interface{} = nil
+
 	switch dist {
 	case "uniform":
-		params := dist_params.([]interface{})
-		min, _ := time.ParseDuration(params[0].(string))
-		max, _ := time.ParseDuration(params[1].(string))
+		params, ok := dist_params.([]interface{})
+		if !ok || len(params) < 2 {
+			return nil, fmt.Errorf("uniform distribution requires 2 parameters [min, max]")
+		}
+
+		minStr, ok := params[0].(string)
+		if !ok {
+			return nil, fmt.Errorf("uniform min parameter must be a duration string, got %T", params[0])
+		}
+		min, err := time.ParseDuration(minStr)
+		if err != nil {
+			return nil, fmt.Errorf("invalid uniform min duration '%s': %w", minStr, err)
+		}
+
+		maxStr, ok := params[1].(string)
+		if !ok {
+			return nil, fmt.Errorf("uniform max parameter must be a duration string, got %T", params[1])
+		}
+		max, err := time.ParseDuration(maxStr)
+		if err != nil {
+			return nil, fmt.Errorf("invalid uniform max duration '%s': %w", maxStr, err)
+		}
+
+		if min >= max {
+			return nil, fmt.Errorf("uniform min (%v) must be less than max (%v)", min, max)
+		}
+
 		fmt.Printf("\t - interval (%d - %d)\n", min, max)
-		distribution = &distuv.Uniform{
+		distribution = distuv.Uniform{
 			Min: float64(int64(min) / int64(time.Second)),
 			Max: float64(int64(max) / int64(time.Second)),
 		}
+
 	case "exponential":
-		avg, _ := time.ParseDuration(dist_params.(string))
+		avgStr, ok := dist_params.(string)
+		if !ok {
+			return nil, fmt.Errorf("exponential distribution requires duration string parameter, got %T", dist_params)
+		}
+
+		avg, err := time.ParseDuration(avgStr)
+		if err != nil {
+			return nil, fmt.Errorf("invalid exponential duration '%s': %w", avgStr, err)
+		}
+
+		if avg <= 0 {
+			return nil, fmt.Errorf("exponential average must be positive, got %v", avg)
+		}
+
 		rate := float64(time.Second) / float64(int64(avg))
 		fmt.Printf("\t - rate %f\n", rate)
 		distribution = distuv.Exponential{
 			Rate: rate,
 		}
+
 	case "constant":
-		distribution = dist_params
+		constStr, ok := dist_params.(string)
+		if !ok {
+			return nil, fmt.Errorf("constant distribution requires duration string parameter, got %T", dist_params)
+		}
+
+		_, err := time.ParseDuration(constStr)
+		if err != nil {
+			return nil, fmt.Errorf("invalid constant duration '%s': %w", constStr, err)
+		}
+
+		distribution = constStr
 		fmt.Printf("\t - value %s\n", distribution)
+
 	case "no delay":
-		return nil
+		return nil, nil
+
 	default:
-		panic("Distirbution " + dist + " not supported")
+		return nil, fmt.Errorf("distribution '%s' not supported", dist)
 	}
-	return distribution
+
+	return distribution, nil
 }
 
-func Delay(distribution interface{}, distType string) {
-	var delay time.Duration
-	switch distType {
-	case "uniform":
-		d := (distribution.(distuv.Uniform)).Rand()
-		d, _ = math.Modf(float64(d) * float64(time.Second))
-		delay = time.Duration(d * float64(time.Second))
-		time.Sleep(delay)
-	case "exponential":
-		d := (distribution.(distuv.Exponential)).Rand()
-		d, _ = math.Modf(float64(d) * float64(time.Second))
-		delay = time.Duration(d * float64(time.Second))
-		time.Sleep(delay)
-	case "constant":
-		delay, _ = time.ParseDuration(distribution.(string))
-		time.Sleep(delay)
-	case "no delay":
-		return
-	default:
-		panic("Distirbution " + distType + " not supported")
+func Delay(distribution interface{}, distType string) error {
+	if distribution == nil {
+		return nil  // No delay to apply
 	}
 
+	var delay time.Duration
+
+	switch distType {
+	case "uniform":
+		u, ok := distribution.(distuv.Uniform)
+		if !ok {
+			return fmt.Errorf("expected distuv.Uniform for uniform distribution, got %T", distribution)
+		}
+		d := u.Rand()
+		d, _ = math.Modf(float64(d) * float64(time.Second))
+		delay = time.Duration(d * float64(time.Second))
+		time.Sleep(delay)
+
+	case "exponential":
+		e, ok := distribution.(distuv.Exponential)
+		if !ok {
+			return fmt.Errorf("expected distuv.Exponential for exponential distribution, got %T", distribution)
+		}
+		d := e.Rand()
+		d, _ = math.Modf(float64(d) * float64(time.Second))
+		delay = time.Duration(d * float64(time.Second))
+		time.Sleep(delay)
+
+	case "constant":
+		delayStr, ok := distribution.(string)
+		if !ok {
+			return fmt.Errorf("expected string for constant distribution, got %T", distribution)
+		}
+		var err error
+		delay, err = time.ParseDuration(delayStr)
+		if err != nil {
+			return fmt.Errorf("invalid constant delay duration '%s': %w", delayStr, err)
+		}
+		time.Sleep(delay)
+
+	case "no delay":
+		return nil
+
+	default:
+		return fmt.Errorf("distribution type '%s' not supported", distType)
+	}
+
+	return nil
 }
 
 // ///////////// MOVING AVERAGE /////////////////

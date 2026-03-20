@@ -103,7 +103,12 @@ func (proxy *Proxy) proxyMain(inAddr string, quicConf *quic.Config) error {
 	}
 
 	// Wait for incoming connections
-	listener, err := quic.ListenAddrEarly(inAddr, util.GenerateTLSConfig(), quicConf)
+	tlsConfig, err := util.GenerateTLSConfig()
+	if err != nil {
+		return fmt.Errorf("failed to generate TLS config: %w", err)
+	}
+
+	listener, err := quic.ListenAddrEarly(inAddr, tlsConfig, quicConf)
 	if err != nil {
 		return err
 	}

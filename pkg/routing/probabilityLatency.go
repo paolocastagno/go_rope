@@ -64,9 +64,18 @@ func InitPL(probs interface{}, dest interface{}, latencyParams_up interface{}, l
 		routingProb = append(routingProb, ps[i].(float64))
 		sinks = append(sinks, ds[i].(string))
 		// Initialize latency
-		distribution_up[sinks[i]] = util.InitDelay(ltu[i].(string), lpu[i])
+		distUp, err := util.InitDelay(ltu[i].(string), lpu[i])
+		if err != nil {
+			fmt.Printf("Error initializing up latency for %s: %v\n", sinks[i], err)
+		}
+		distribution_up[sinks[i]] = distUp
 		distributionType_up[sinks[i]] = ltu[i].(string)
-		distribution_down[sinks[i]] = util.InitDelay(ltd[i].(string), lpd[i])
+
+		distDown, err := util.InitDelay(ltd[i].(string), lpd[i])
+		if err != nil {
+			fmt.Printf("Error initializing down latency for %s: %v\n", sinks[i], err)
+		}
+		distribution_down[sinks[i]] = distDown
 		distributionType_down[sinks[i]] = ltd[i].(string)
 		// Initialize counters
 		countup = append(countup, 0)
@@ -97,7 +106,9 @@ func PLDecision(req *util.RoPEMessage) {
 	req.Destination = sinks[i]
 
 	// Delay the incoming request
-	util.Delay(distribution_up[req.Destination], distributionType_up[req.Destination])
+	if err := util.Delay(distribution_up[req.Destination], distributionType_up[req.Destination]); err != nil {
+		fmt.Printf("Error applying delay: %v\n", err)
+	}
 
 	countup[i] += int64(len(req.Body))
 
@@ -136,7 +147,9 @@ func PLSetLastResponse(lastResp *util.RoPEMessage) {
 	defer plMutex.Unlock()
 
 	if lastResp.Type == util.Response {
-		util.Delay(distribution_down[lastResp.Source], distributionType_down[lastResp.Source])
+		if err := util.Delay(distribution_down[lastResp.Source], distributionType_down[lastResp.Source]); err != nil {
+			fmt.Printf("Error applying down delay: %v\n", err)
+		}
 		var i = 0
 		for i < len(sinks) && sinks[i] != lastResp.Destination {
 			i++

@@ -78,12 +78,21 @@ func loadConfig(client *Client, initLogic func(*toml.Tree) *interface{}) error {
 	}
 
 	cfgMap := config.ToMap()
-	fmt.Printf("Config contents: %v\n", cfgMap) // Debugging log
+	fmt.Printf("Config contents: %v\n", cfgMap)
 
-	// Use the correct section name: "configuration" instead of "config"
-	client.IdDevice = GetString(cfgMap["configuration"].(map[string]interface{}), "id_device", "default_id")
+	// Safely retrieve the "configuration" section
+	configSection, ok := cfgMap["configuration"]
+	if !ok {
+		return errors.New("missing 'configuration' section in config file")
+	}
+	configMap, ok := configSection.(map[string]interface{})
+	if !ok {
+		return fmt.Errorf("'configuration' section must be a table, got %T", configSection)
+	}
 
-	// Safely retrieve the destinations from the config section
+	client.IdDevice = GetString(configMap, "id_device", "default_id")
+
+	// Safely retrieve the destinations
 	configDestinations, ok := config.Get("configuration.destinations").([]interface{})
 	if !ok || len(configDestinations) == 0 {
 		return errors.New("missing or invalid 'destinations' key in 'configuration' section")
@@ -94,14 +103,24 @@ func loadConfig(client *Client, initLogic func(*toml.Tree) *interface{}) error {
 	for i, d := range configDestinations {
 		str, ok := d.(string)
 		if !ok {
-			return fmt.Errorf("invalid destination value at index %d", i)
+			return fmt.Errorf("invalid destination value at index %d: expected string, got %T", i, d)
 		}
 		client.Destinations[i] = str
 	}
 
-	client.MaxConcurrentConnections = uint(config.GetDefault("configuration.MaxConcurrentConnections", int64(1)).(int64))
-	client.TestDuration = GetDuration(cfgMap["configuration"].(map[string]interface{}), "TestDuration", "0s")
-	client.Timeout = GetDuration(cfgMap["configuration"].(map[string]interface{}), "timeout", "30s")
+	// Safely get MaxConcurrentConnections
+	maxConnRaw := config.GetDefault("configuration.MaxConcurrentConnections", int64(1))
+	maxConn, ok := maxConnRaw.(int64)
+	if !ok {
+		return fmt.Errorf("MaxConcurrentConnections must be an integer, got %T", maxConnRaw)
+	}
+	if maxConn <= 0 {
+		return fmt.Errorf("MaxConcurrentConnections must be positive, got %d", maxConn)
+	}
+	client.MaxConcurrentConnections = uint(maxConn)
+
+	client.TestDuration = GetDuration(configMap, "TestDuration", "0s")
+	client.Timeout = GetDuration(configMap, "timeout", "30s")
 	client.Counter = make(chan int64, client.MaxConcurrentConnections)
 	client.LoggerEnabled = config.GetDefault("logger_enabled", false).(bool)
 	client.Connections = make([]quic.EarlyConnection, 0, client.MaxConcurrentConnections)

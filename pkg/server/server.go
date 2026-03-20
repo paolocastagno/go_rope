@@ -176,9 +176,12 @@ func parseServerConfig(server *Server, cfg *toml.Tree) error {
 	}
 
 	if bufSize, ok := cfg.Get("configuration.BufSize").(int64); ok {
+		if bufSize <= 0 {
+			return fmt.Errorf("BufSize must be positive, got %d", bufSize)
+		}
 		server.BufSize = bufSize
 	} else {
-		return errors.New("missing or invalid 'BufSize' in configuration[" + fmt.Sprintf("%d", bufSize) + "]")
+		return errors.New("missing or invalid 'BufSize' in configuration; expected positive integer")
 	}
 
 	if workers, ok := cfg.Get("configuration.Workers").(int64); ok {
@@ -221,7 +224,13 @@ func initializeLogger(cfg *toml.Tree) error {
 // run starts the server and handles incoming connections
 func Run(server *Server, quicConf *quic.Config, ForwardDecision func(*util.RoPEMessage, *map[string]quic.EarlyConnection, int64) bool, ForwardSetLastResponse func(*util.RoPEMessage), ForwardBlock func(*util.RoPEMessage, quic.Stream)) error {
 	requestQueue := make(chan JobRequest, server.BufSize)
-	listener, err := quic.ListenAddrEarly(server.ListenAddr, util.GenerateTLSConfig(), quicConf)
+
+	tlsConfig, err := util.GenerateTLSConfig()
+	if err != nil {
+		return fmt.Errorf("failed to generate TLS config: %w", err)
+	}
+
+	listener, err := quic.ListenAddrEarly(server.ListenAddr, tlsConfig, quicConf)
 	if err != nil {
 		return fmt.Errorf("error creating listener: %v", err)
 	}
