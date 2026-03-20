@@ -1,0 +1,14 @@
+[config]
+id_device = 1
+requests_per_sec =  5
+max_concurrent_connections = 20000
+test_duration = "30s"
+timeout = "40s"
+destinations = ["localhost:8080"]
+
+[application]
+name = "fixed"
+init = "InitFixed"
+destinations = ["localhost:8080"]
+requestSize = 100
+responseSize = 100

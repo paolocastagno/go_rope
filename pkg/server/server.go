@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/paolocastagno/go_rope/pkg/util"
@@ -22,12 +23,78 @@ type JobRequest struct {
 	QuicStream quic.Stream
 }
 
-// sessions stores active QUIC connections
-var sessions map[string]quic.EarlyConnection
+// ServerState holds all shared state with mutex protection
+type ServerState struct {
+	mu                    sync.RWMutex
+	sessions              map[string]quic.EarlyConnection
+	forwardBlock          func(*util.RoPEMessage, quic.Stream)
+	forwardDecision       func(*util.RoPEMessage, *map[string]quic.EarlyConnection, int64) bool
+	forwardSetLastResponse func(*util.RoPEMessage)
+}
 
+// serverState is the global, thread-safe state holder
+var serverState = &ServerState{
+	sessions: make(map[string]quic.EarlyConnection),
+}
+
+// ForwardBlock - deprecated, use serverState methods instead
 var ForwardBlock func(*util.RoPEMessage, quic.Stream)
+// ForwardDecision - deprecated, use serverState methods instead
 var ForwardDecision func(*util.RoPEMessage, *map[string]quic.EarlyConnection, int64) bool
+// ForwardSetLastResponse - deprecated, use serverState methods instead
 var ForwardSetLastResponse func(*util.RoPEMessage)
+
+// GetForwardBlock safely retrieves the ForwardBlock function
+func (s *ServerState) GetForwardBlock() func(*util.RoPEMessage, quic.Stream) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.forwardBlock
+}
+
+// SetForwardBlock safely sets the ForwardBlock function
+func (s *ServerState) SetForwardBlock(f func(*util.RoPEMessage, quic.Stream)) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.forwardBlock = f
+	ForwardBlock = f  // Keep global for backward compatibility
+}
+
+// GetForwardDecision safely retrieves the ForwardDecision function
+func (s *ServerState) GetForwardDecision() func(*util.RoPEMessage, *map[string]quic.EarlyConnection, int64) bool {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.forwardDecision
+}
+
+// SetForwardDecision safely sets the ForwardDecision function
+func (s *ServerState) SetForwardDecision(f func(*util.RoPEMessage, *map[string]quic.EarlyConnection, int64) bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.forwardDecision = f
+	ForwardDecision = f  // Keep global for backward compatibility
+}
+
+// GetForwardSetLastResponse safely retrieves the ForwardSetLastResponse function
+func (s *ServerState) GetForwardSetLastResponse() func(*util.RoPEMessage) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.forwardSetLastResponse
+}
+
+// SetForwardSetLastResponse safely sets the ForwardSetLastResponse function
+func (s *ServerState) SetForwardSetLastResponse(f func(*util.RoPEMessage)) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.forwardSetLastResponse = f
+	ForwardSetLastResponse = f  // Keep global for backward compatibility
+}
+
+// GetSessions safely retrieves a copy of sessions map
+func (s *ServerState) GetSessions() map[string]quic.EarlyConnection {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.sessions
+}
 
 // Server represents the server configuration
 type Server struct {
@@ -248,6 +315,7 @@ func worker(i int, queue <-chan JobRequest, ForwardDecision func(*util.RoPEMessa
 		send := true
 		var attempt int64 = 0
 		for send {
+			sessions := serverState.GetSessions()
 			send = ForwardDecision(&packet, &sessions, attempt)
 			attempt++
 			if packet.Destination != " " {

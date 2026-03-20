@@ -3,6 +3,7 @@ package routing
 import (
 	"fmt"
 	"math/rand"
+	"sync"
 	"time"
 
 	"github.com/paolocastagno/go_rope/pkg/util"
@@ -33,6 +34,9 @@ var byte_up util.Mavg = util.NewMavg(twindow)
 var byte_down util.Mavg = util.NewMavg(twindow)
 var byte_up_i []util.Mavg
 var byte_down_i []util.Mavg
+
+// Mutex for thread-safe access to all latency routing state
+var plMutex sync.RWMutex
 
 func InitPL(probs interface{}, dest interface{}, latencyParams_up interface{}, latencyType_up interface{}, latencyParams_down interface{}, latencyType_down interface{}) {
 
@@ -74,6 +78,14 @@ func InitPL(probs interface{}, dest interface{}, latencyParams_up interface{}, l
 }
 
 func PLDecision(req *util.RoPEMessage) {
+	plMutex.Lock()
+	defer plMutex.Unlock()
+
+	if len(routingProb) == 0 {
+		fmt.Println("No routing probabilities configured")
+		return
+	}
+
 	res := rand.Float64()
 	var i = 0
 	var pdest = routingProb[0]
@@ -120,12 +132,17 @@ func PLDecision(req *util.RoPEMessage) {
 }
 
 func PLSetLastResponse(lastResp *util.RoPEMessage) {
+	plMutex.Lock()
+	defer plMutex.Unlock()
+
 	if lastResp.Type == util.Response {
 		util.Delay(distribution_down[lastResp.Source], distributionType_down[lastResp.Source])
 		var i = 0
-		for i < len(d) && d[i] != lastResp.Destination {
+		for i < len(sinks) && sinks[i] != lastResp.Destination {
 			i++
 		}
-		countdown[i] += int64(len(lastResp.Body))
+		if i < len(countdown) {
+			countdown[i] += int64(len(lastResp.Body))
+		}
 	}
 }

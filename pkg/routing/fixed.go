@@ -3,6 +3,7 @@ package routing
 import (
 	"fmt"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/paolocastagno/go_rope/pkg/util"
@@ -21,6 +22,9 @@ const twind = 100
 
 var b_u = util.NewMavg(twind)
 var b_d = util.NewMavg(twind)
+
+// Mutex for thread-safe access
+var fixedMutex sync.RWMutex
 
 func Die(msg ...interface{}) {
 	fmt.Println(msg...)
@@ -45,6 +49,9 @@ func InitFixed(conf *toml.Tree, proxy *Proxy) {
 }
 
 func FixedDecision(req *util.RoPEMessage) {
+	fixedMutex.Lock()
+	defer fixedMutex.Unlock()
+
 	cu += int64(len(req.Body))
 
 	if (stim == time.Time{}) {
@@ -56,15 +63,15 @@ func FixedDecision(req *util.RoPEMessage) {
 			util.Mavg_push(&b_d, cd)
 
 			fmt.Printf("\nUplink:  %f \n", util.Mavg_eval(b_u, int64(obswind/time.Second)))
-			for i, s := range d {
-				fmt.Printf("\tUplink %s:  %f bytes/s\n", s, util.Mavg_eval(b_up_i[i], int64(obswind/time.Second)))
-			}
 			fmt.Printf("Downlink:  %f \n", util.Mavg_eval(b_d, int64(obswind/time.Second)))
 		}
 	}
 }
 
 func FixedSetLastResponse(lastResp *util.RoPEMessage) {
+	fixedMutex.Lock()
+	defer fixedMutex.Unlock()
+
 	if lastResp.Type == util.Response {
 		cd += int64(len(lastResp.Body))
 	}

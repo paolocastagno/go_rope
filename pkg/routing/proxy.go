@@ -9,7 +9,6 @@ import (
 	"os"
 	"time"
 
-	"github.com/paolocastagno/go_rope/pkg/config"
 	"github.com/paolocastagno/go_rope/pkg/util"
 
 	"github.com/pelletier/go-toml"
@@ -28,11 +27,6 @@ type Proxy struct {
 	RoutingTbl             map[string]string
 	ForwardDecision        func(*util.RoPEMessage)
 	ForwardSetLastResponse func(*util.RoPEMessage)
-}
-
-func die(msg ...interface{}) {
-	fmt.Println(msg...)
-	os.Exit(1)
 }
 
 func (proxy *Proxy) InitProxy(configFile string, quicConf *quic.Config, initLogic func(*toml.Tree)) error {
@@ -55,10 +49,17 @@ func (proxy *Proxy) InitProxy(configFile string, quicConf *quic.Config, initLogi
 	// Load forwarding logic
 	if proxy.ConfFile != "" {
 		fmt.Println("Loading forwarding policy:", proxy.ConfFile)
-		//loadForwardingConf(proxy.ConfFile, RTT)
-		config.LoadForwardingConf(proxy.ConfFile, initLogic)
+		conf, err := toml.LoadFile(proxy.ConfFile)
+		if err != nil {
+			fmt.Printf("Error loading config file: %v\n", err)
+			os.Exit(1)
+		}
+		if initLogic != nil {
+			initLogic(conf)
+		}
 	} else {
-		config.Die("No forwarding policy specified")
+		fmt.Println("No forwarding policy specified")
+		os.Exit(1)
 	}
 
 	log.Fatal(proxy.proxyMain(proxy.ListenAddr, quicConf))
